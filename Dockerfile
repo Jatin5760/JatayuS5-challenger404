@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     fontconfig \
+    lmodern \
     perl \
     texlive-latex-base \
     texlive-latex-recommended \
