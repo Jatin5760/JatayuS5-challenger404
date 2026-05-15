@@ -50,6 +50,6 @@ ENV PORT=5055 \
 EXPOSE 5055
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD python -c "import json, urllib.request; r=urllib.request.urlopen('http://127.0.0.1:5055/health/live', timeout=3); raise SystemExit(0 if r.status == 200 else 1)"
+    CMD python -c "import json, urllib.request; r=urllib.request.urlopen('http://127.0.0.1:5055/health/live', timeout=3); raise SystemExit(0 if r.status == 200 else 1)"
 
 ENTRYPOINT ["/entrypoint.sh"]
