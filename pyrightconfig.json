@@ -1,0 +1,8 @@
+{
+  "extraPaths": [
+    "templates/FX_Trade_Confirmation",
+    "templates/IRS_Confirmation",
+    "templates/CDS_Confirmation",
+    "templates/Equity_TRS"
+  ]
+}

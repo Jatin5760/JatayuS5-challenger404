@@ -66,10 +66,32 @@ from agents.graph import ai_create_graph, pdf_compile_graph, validation_graph
 from agents.gemini_helper import call_gemini
 
 # Import raw generators as fallback for direct PDF compilation
-from generate_fx_ndf import generate_pdf as generate_fx_pdf
-from generate_irs import generate_pdf as generate_irs_pdf
-from generate_cds import generate_pdf as generate_cds_pdf
-from generate_equity_trs import generate_pdf as generate_equity_trs_pdf
+# Lazy imports with fallbacks — prevents entire server from crashing
+# if a single template module is missing from the deployment image.
+_generate_fx_pdf_direct = None
+_generate_irs_pdf_direct = None
+_generate_cds_pdf_direct = None
+_generate_equity_trs_pdf_direct = None
+
+try:
+    from generate_fx_ndf import generate_pdf as _generate_fx_pdf_direct
+except ModuleNotFoundError:
+    print("  ⚠️  generate_fx_ndf module not found — FX NDF direct PDF generation disabled")
+
+try:
+    from generate_irs import generate_pdf as _generate_irs_pdf_direct
+except ModuleNotFoundError:
+    print("  ⚠️  generate_irs module not found — IRS direct PDF generation disabled")
+
+try:
+    from generate_cds import generate_pdf as _generate_cds_pdf_direct
+except ModuleNotFoundError:
+    print("  ⚠️  generate_cds module not found — CDS direct PDF generation disabled")
+
+try:
+    from generate_equity_trs import generate_pdf as _generate_equity_trs_pdf_direct
+except ModuleNotFoundError:
+    print("  ⚠️  generate_equity_trs module not found — Equity TRS direct PDF generation disabled")
 
 # Adobe PDF Services SDK (for Word conversion)
 try:
@@ -589,27 +611,29 @@ def _obj_id_to_str(doc: dict) -> dict:
 
 @app.route("/")
 def serve_index():
-    return send_from_directory(app.static_folder, "index.html")
+    static_dir = app.static_folder or ""
+    return send_from_directory(static_dir, "index.html")
 
 @app.route("/<path:path>")
 def serve_static(path):
+    static_dir = app.static_folder or ""
     # Don't catch API routes
     if (path.startswith("generate/") or path.startswith("ai/") or
             path.startswith("api/") or path == "validate" or
             path.startswith("convert/")):
         return jsonify({"error": "Not found"}), 404
 
-    full_path = os.path.join(app.static_folder, path)
+    full_path = os.path.join(static_dir, path)
     if os.path.exists(full_path) and os.path.isfile(full_path):
-        return send_from_directory(app.static_folder, path)
+        return send_from_directory(static_dir, path)
 
     if not os.path.splitext(path)[1]:
         if os.path.exists(full_path + ".html"):
-            return send_from_directory(app.static_folder, path + ".html")
+            return send_from_directory(static_dir, path + ".html")
         if os.path.exists(os.path.join(full_path, "index.html")):
-            return send_from_directory(app.static_folder, os.path.join(path, "index.html"))
+            return send_from_directory(static_dir, os.path.join(path, "index.html"))
 
-    return send_from_directory(app.static_folder, "index.html")
+    return send_from_directory(static_dir, "index.html")
 
 
 # ═══════════════════════════════════════════
@@ -859,6 +883,8 @@ def api_update_profile():
             return jsonify({"error": "No valid fields to update"}), 400
         get_db().users.update_one({"_id": ObjectId(g.current_user_id)}, {"$set": update_data})
         user = get_db().users.find_one({"_id": ObjectId(g.current_user_id)})
+        if not user:
+            return jsonify({"error": "User not found"}), 404
         return jsonify({"message": "Profile updated successfully", "user": _public_user(user)})
     except Exception as e:
         traceback.print_exc()
@@ -875,7 +901,7 @@ def api_change_password():
         if not current_pw or not new_pw:
             return jsonify({"error": "Missing current or new password"}), 400
         user = get_db().users.find_one({"_id": ObjectId(g.current_user_id)})
-        if not check_password_hash(user.get("password_hash", ""), current_pw):
+        if not user or not check_password_hash(user.get("password_hash", ""), current_pw):
             return jsonify({"error": "Incorrect current password"}), 401
         get_db().users.update_one({"_id": ObjectId(g.current_user_id)}, {"$set": {"password_hash": generate_password_hash(new_pw)}})
         return jsonify({"message": "Password updated successfully"})
@@ -1024,7 +1050,7 @@ def api_update_document(doc_id):
         
         # Normal update within same collection
         current_coll = db.documents if is_in_final else db.drafts
-        update_fields["is_draft"] = bool(new_is_draft) if new_is_draft is not None else (not is_in_final)
+        update_fields["is_draft"] = bool(new_is_draft) if new_is_draft is not None else (not is_in_final)  # type: ignore[assignment]
         
         result = current_coll.update_one(
             {"_id": oid, "user_id": g.current_user_id},
@@ -1138,6 +1164,8 @@ def _send_pdf(pdf_path: str):
 def _generate_pdf_response(doc_type: str, generator, trade_data: dict):
     if not isinstance(trade_data, dict) or not trade_data:
         return jsonify({"error": "No JSON body provided"}), 400
+    if generator is None:
+        return jsonify({"error": f"{doc_type.upper()} PDF generator not available — module missing from deployment"}), 503
     job_id, job_dir = _make_job_dir()
     pdf_path = generator(trade_data, job_dir)
     if pdf_path and os.path.exists(pdf_path):
@@ -1164,7 +1192,7 @@ def api_generate_fx_ndf():
     try:
         trade_data = _json_body()
         print(f"\n{'='*55}\n  ▶ Generating FX NDF PDF...\n{'='*55}")
-        return _generate_pdf_response("fx_ndf", generate_fx_pdf, trade_data)
+        return _generate_pdf_response("fx_ndf", _generate_fx_pdf_direct, trade_data)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
@@ -1179,7 +1207,7 @@ def api_generate_irs():
     try:
         trade_data = _json_body()
         print(f"\n{'='*55}\n  ▶ Generating IRS Confirmation PDF...\n{'='*55}")
-        return _generate_pdf_response("irs", generate_irs_pdf, trade_data)
+        return _generate_pdf_response("irs", _generate_irs_pdf_direct, trade_data)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
@@ -1194,7 +1222,7 @@ def api_generate_cds():
     try:
         trade_data = _json_body()
         print(f"\n{'='*55}\n  ▶ Generating CDS Confirmation PDF...\n{'='*55}")
-        return _generate_pdf_response("cds", generate_cds_pdf, trade_data)
+        return _generate_pdf_response("cds", _generate_cds_pdf_direct, trade_data)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
@@ -1210,7 +1238,7 @@ def api_generate_equity_trs():
         trade_data = _json_body()
         model = trade_data.get("model_type", "I")
         print(f"\n{'='*55}\n  ▶ Generating Equity TRS PDF (Model {model})...\n{'='*55}")
-        return _generate_pdf_response("equity_trs", generate_equity_trs_pdf, trade_data)
+        return _generate_pdf_response("equity_trs", _generate_equity_trs_pdf_direct, trade_data)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
@@ -1243,23 +1271,33 @@ def api_convert_word():
         if not ADOBE_AVAILABLE:
             return jsonify({"error": "Adobe PDF Services SDK is not installed or configured."}), 500
 
-        credentials = ServicePrincipalCredentials(
+        # Re-import inside the guarded block so Pylance knows they're bound
+        from adobe.pdfservices.operation.auth.service_principal_credentials import ServicePrincipalCredentials as _SC  # type: ignore[no-redef]
+        from adobe.pdfservices.operation.pdf_services import PDFServices as _PS  # type: ignore[no-redef]
+        from adobe.pdfservices.operation.pdf_services_media_type import PDFServicesMediaType as _MT  # type: ignore[no-redef]
+        from adobe.pdfservices.operation.pdfjobs.jobs.export_pdf_job import ExportPDFJob as _EJ  # type: ignore[no-redef]
+        from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_params import ExportPDFParams as _EP  # type: ignore[no-redef]
+        from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_target_format import ExportPDFTargetFormat as _TF  # type: ignore[no-redef]
+        from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_ocr_locale import ExportOCRLocale as _OL  # type: ignore[no-redef]
+        from adobe.pdfservices.operation.pdfjobs.result.export_pdf_result import ExportPDFResult as _ER  # type: ignore[no-redef]
+
+        credentials = _SC(
             client_id=os.environ.get("PDF_SERVICES_CLIENT_ID"),
             client_secret=os.environ.get("PDF_SERVICES_CLIENT_SECRET"),
         )
-        pdf_services = PDFServices(credentials=credentials)
+        pdf_services = _PS(credentials=credentials)
 
         with open(pdf_path, "rb") as f:
             input_stream = f.read()
 
-        asset = pdf_services.upload(input_stream=input_stream, mime_type=PDFServicesMediaType.PDF)
-        export_params = ExportPDFParams(
-            target_format=ExportPDFTargetFormat.DOCX,
-            ocr_lang=ExportOCRLocale.EN_US,
+        asset = pdf_services.upload(input_stream=input_stream, mime_type=_MT.PDF)
+        export_params = _EP(
+            target_format=_TF.DOCX,
+            ocr_lang=_OL.EN_US,
         )
-        export_job = ExportPDFJob(input_asset=asset, export_pdf_params=export_params)
+        export_job = _EJ(input_asset=asset, export_pdf_params=export_params)
         location = pdf_services.submit(export_job)
-        response = pdf_services.get_job_result(location, ExportPDFResult)
+        response = pdf_services.get_job_result(location, _ER)
 
         result_asset = response.get_result().get_asset()
         stream_asset = pdf_services.get_content(result_asset)
