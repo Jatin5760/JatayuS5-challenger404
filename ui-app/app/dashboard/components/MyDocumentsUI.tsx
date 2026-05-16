@@ -69,15 +69,15 @@ export default function MyDocumentsUI({ documents, onViewPdf, onEdit, onDelete }
   };
 
   return (
-    <div className="flex flex-col h-full animate-fade-in gap-6 relative">
+    <div className="flex flex-col min-h-full animate-fade-in gap-6 relative">
       {/* Page Header */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-slate-900 font-inter tracking-tight">My Documents</h1>
-        <p className="text-sm text-slate-500 font-medium">Browse and preview your generated trade confirmations by asset class.</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-inter tracking-tight">My Documents</h1>
+        <p className="text-xs sm:text-sm text-slate-500 font-medium">Browse and preview your generated trade confirmations by asset class.</p>
       </div>
 
       {/* Modern Tabs */}
-      <div className="flex gap-2 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-100 w-fit">
+      <div className="flex max-w-full gap-2 overflow-x-auto bg-slate-100/50 p-1.5 rounded-2xl border border-slate-100 w-full sm:w-fit">
         {DOC_TYPES.map((type) => {
           const count = documents.filter(doc => {
             if (type.id === 'drafts') return doc.is_draft;
@@ -88,7 +88,7 @@ export default function MyDocumentsUI({ documents, onViewPdf, onEdit, onDelete }
             <button
               key={type.id}
               onClick={() => setActiveTab(type.id)}
-              className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${
+              className={`px-4 sm:px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${
                 activeTab === type.id 
                   ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' 
                   : 'text-slate-500 hover:text-slate-700'
@@ -108,9 +108,9 @@ export default function MyDocumentsUI({ documents, onViewPdf, onEdit, onDelete }
       </div>
 
       {/* Main Content Area: Split View */}
-      <div className="flex-1 flex gap-6 min-h-0">
+      <div className="flex-1 flex flex-col xl:flex-row gap-6 min-h-0">
         {/* Left: Document List */}
-        <div className="w-[380px] flex flex-col gap-3 overflow-y-auto pr-2 custom-scrollbar">
+        <div className="w-full xl:w-[380px] xl:max-h-[calc(100dvh-250px)] flex flex-col gap-3 overflow-y-auto xl:pr-2 custom-scrollbar">
           {filteredDocs.length > 0 ? (
             filteredDocs.map((doc) => (
               <div 
@@ -173,7 +173,7 @@ export default function MyDocumentsUI({ documents, onViewPdf, onEdit, onDelete }
         </div>
 
         {/* Right: PDF Preview Placeholder */}
-        <div className="flex-1 bg-white rounded-3xl border border-border-secondary shadow-sm overflow-hidden flex flex-col relative">
+        <div className="flex-1 min-h-[300px] sm:min-h-[360px] bg-white rounded-2xl sm:rounded-3xl border border-border-secondary shadow-sm overflow-hidden flex flex-col relative">
           <div className="p-4 border-b border-gray-50 flex items-center justify-between bg-white z-10">
             <span className="text-xs font-bold text-text-tertiary flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary" />
@@ -207,7 +207,7 @@ export default function MyDocumentsUI({ documents, onViewPdf, onEdit, onDelete }
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300" 
             onClick={() => setDeleteModal({ isOpen: false, docId: null })}
           />
-          <div className="bg-white rounded-[32px] w-full max-w-sm p-8 shadow-2xl relative z-10 animate-in zoom-in-95 fade-in duration-300">
+          <div className="bg-white rounded-[24px] sm:rounded-[32px] w-full max-w-[90vw] sm:max-w-sm p-6 sm:p-8 shadow-2xl relative z-10 animate-in zoom-in-95 fade-in duration-300">
             <div className="flex flex-col items-center text-center">
               <div className="w-20 h-20 rounded-3xl bg-rose-50 text-rose-500 flex items-center justify-center text-3xl mb-6">
                 <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24">

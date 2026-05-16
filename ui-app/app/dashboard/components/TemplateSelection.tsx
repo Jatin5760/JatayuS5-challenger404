@@ -44,9 +44,9 @@ const templates = [
 
 export default function TemplateSelection({ onSelect, onAI }: TemplateProps) {
   return (
-    <section className="mb-12">
+    <section className="mb-8 sm:mb-12">
       {/* Section header */}
-      <div className="flex items-end justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-0 mb-4 sm:mb-6">
         <div>
           <p
             className="text-[10px] font-bold uppercase tracking-[0.14em] mb-1"
@@ -55,9 +55,8 @@ export default function TemplateSelection({ onSelect, onAI }: TemplateProps) {
             New Confirmation
           </p>
           <h2
-            className="leading-tight"
+            className="text-lg sm:text-[22px] leading-tight"
             style={{
-              fontSize: '22px',
               fontWeight: 700,
               color: '#0f172a',
               fontFamily: "'DM Serif Display', Georgia, serif",
@@ -67,7 +66,7 @@ export default function TemplateSelection({ onSelect, onAI }: TemplateProps) {
             Choose a Template
           </h2>
           <p
-            className="text-[13px] mt-0.5"
+            className="text-[11px] sm:text-[13px] mt-0.5"
             style={{ color: '#94a3b8', fontFamily: "'DM Sans', system-ui, sans-serif" }}
           >
             Select a product type to begin your trade confirmation flow.
@@ -77,13 +76,13 @@ export default function TemplateSelection({ onSelect, onAI }: TemplateProps) {
         {/* AI Extraction CTA */}
         <button
           onClick={onAI}
-          className="flex items-center gap-2.5 transition-all duration-200 hover:-translate-y-0.5"
+          className="flex items-center gap-2 sm:gap-2.5 transition-all duration-200 hover:-translate-y-0.5 w-full sm:w-auto justify-center"
           style={{
             background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
             color: 'white',
-            padding: '10px 20px',
+            padding: '8px 16px',
             borderRadius: '999px',
-            fontSize: '13px',
+            fontSize: '12px',
             fontWeight: 700,
             fontFamily: "'DM Sans', system-ui, sans-serif",
             border: '1px solid #4338ca',
@@ -103,7 +102,7 @@ export default function TemplateSelection({ onSelect, onAI }: TemplateProps) {
       </div>
 
       {/* Template Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         {templates.map((tpl) => (
           <button
             key={tpl.id}
@@ -114,7 +113,7 @@ export default function TemplateSelection({ onSelect, onAI }: TemplateProps) {
               borderLeftWidth: '3px',
               borderLeftColor: tpl.accent,
               boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-              padding: '20px',
+              padding: '16px',
             }}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 12px 32px rgba(0,0,0,0.09)`;
@@ -130,7 +129,7 @@ export default function TemplateSelection({ onSelect, onAI }: TemplateProps) {
             <span
               className="pointer-events-none select-none absolute right-2 top-1 leading-none"
               style={{
-                fontSize: '56px',
+                fontSize: '40px',
                 fontWeight: 900,
                 color: tpl.accent,
                 opacity: 0.05,
@@ -152,7 +151,7 @@ export default function TemplateSelection({ onSelect, onAI }: TemplateProps) {
             <h3
               className="mb-1 transition-colors duration-200"
               style={{
-                fontSize: '15px',
+                fontSize: '14px',
                 fontWeight: 700,
                 color: '#0f172a',
                 fontFamily: "'DM Serif Display', Georgia, serif",

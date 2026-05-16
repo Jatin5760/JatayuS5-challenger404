@@ -19,7 +19,7 @@ from google.genai import types
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_PROJECT_ROOT / ".env")
 
-MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
+MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
 _client = None
 
 

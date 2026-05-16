@@ -39,11 +39,10 @@ COPY server.py .
 COPY --from=ui-build /ui-app/out ./ui-app/out
 COPY --from=ui-build /ui-app/public/schemas ./ui-app/public/schemas
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && mkdir -p /app/output_confirmations/temp
+RUN chmod +x /entrypoint.sh && mkdir -p /app/output_confirmations/temp /app/pdf_temp
 
 ENV PORT=5055 \
     APP_ENV=production \
-    MONGO_URI=mongodb://mongo:27017/ \
     MONGO_DB_NAME=tradedocai \
     PDF_RETENTION_HOURS=24
 

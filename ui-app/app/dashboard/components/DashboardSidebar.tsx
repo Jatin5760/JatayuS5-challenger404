@@ -10,6 +10,8 @@ interface SidebarProps {
   onGoHome: () => void;
   onSetPage: (page: AppPage) => void;
   activePage: string;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 const NAV_GROUPS = [
@@ -50,16 +52,32 @@ const NAV_GROUPS = [
   }
 ];
 
-export default function DashboardSidebar({ userName, onLogout, onGoHome, onSetPage, activePage }: SidebarProps) {
+export default function DashboardSidebar({ userName, onLogout, onGoHome, onSetPage, activePage, isMobileOpen = false, onCloseMobile }: SidebarProps) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
   // Using a smart masculine avatar from DiceBear (Latest stable version)
   const avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=Jasper`;
 
+  // Fix hydration mismatch: only apply active styles after client mount
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <>
+      {isMobileOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          className="fixed inset-0 z-30 bg-slate-950/40 backdrop-blur-sm lg:hidden"
+          onClick={onCloseMobile}
+        />
+      )}
       <aside
-        className="w-[260px] flex flex-col h-full shrink-0 z-30 overflow-y-auto"
+        className={`fixed flex flex-col shrink-0 z-40 overflow-y-auto transition-transform duration-300 lg:static lg:w-[260px] lg:translate-x-0 ${
+          isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+        } inset-y-0 left-0 w-[280px] h-full rounded-r-[24px] lg:rounded-none lg:inset-y-0 lg:left-0 lg:w-[260px] lg:h-auto`}
         style={{
           background: 'var(--background)',
           borderRight: '1px solid var(--border)',
@@ -67,7 +85,7 @@ export default function DashboardSidebar({ userName, onLogout, onGoHome, onSetPa
         }}
       >
         {/* Branding */}
-        <div className="px-7 pt-8 pb-8 flex items-center gap-3 cursor-pointer" onClick={onGoHome}>
+        <div className="px-5 sm:px-7 pt-6 sm:pt-8 pb-6 sm:pb-8 flex items-center gap-3 cursor-pointer" onClick={() => { onGoHome(); onCloseMobile?.(); }}>
           <div className="relative w-8 h-8 shrink-0">
             <Image src="/logo.svg" alt="TradeDoc AI Logo" fill className="object-contain" priority />
           </div>
@@ -85,12 +103,12 @@ export default function DashboardSidebar({ userName, onLogout, onGoHome, onSetPa
               </h3>
               <div className="space-y-1">
                 {group.items.map((item) => {
-                  const isActive = activePage === item.page;
+                  const isActive = mounted && activePage === item.page;
                   
                   return (
                     <button
                       key={item.label}
-                      onClick={() => onSetPage(item.page)}
+                      onClick={() => { onSetPage(item.page); onCloseMobile?.(); }}
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative"
                       style={{
                         background: isActive ? 'rgba(24, 20, 243, 0.06)' : 'transparent',
@@ -158,13 +176,13 @@ export default function DashboardSidebar({ userName, onLogout, onGoHome, onSetPa
           />
           
           {/* Modal Card */}
-          <div className="relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl border border-white/20 animate-scale-in overflow-hidden">
+          <div className="relative bg-white w-full max-w-[90vw] sm:max-w-sm rounded-[24px] sm:rounded-[32px] p-6 sm:p-8 shadow-2xl border border-white/20 animate-scale-in overflow-hidden">
             {/* Background Decoration */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full -mr-16 -mt-16 blur-3xl" />
             
             <div className="flex flex-col items-center text-center gap-6">
               {/* Icon */}
-              <div className="w-20 h-20 rounded-3xl bg-red-50 flex items-center justify-center shadow-inner">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-red-50 flex items-center justify-center shadow-inner">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
                   <polyline points="16 17 21 12 16 7" />
@@ -173,8 +191,8 @@ export default function DashboardSidebar({ userName, onLogout, onGoHome, onSetPa
               </div>
               
               <div className="space-y-2">
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Logging Out?</h3>
-                <p className="text-slate-500 text-sm font-medium leading-relaxed">
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Logging Out?</h3>
+                <p className="text-slate-500 text-[13px] sm:text-sm font-medium leading-relaxed">
 	                  Are you sure you want to end your session? You&apos;ll need to log in again to access your trades.
                 </p>
               </div>
@@ -182,13 +200,13 @@ export default function DashboardSidebar({ userName, onLogout, onGoHome, onSetPa
               <div className="flex flex-col w-full gap-3 mt-2">
                 <button 
                   onClick={onLogout}
-                  className="w-full py-4 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm shadow-lg shadow-red-200 transition-all active:scale-95"
+                  className="w-full py-3 sm:py-4 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-bold text-[13px] sm:text-sm shadow-lg shadow-red-200 transition-all active:scale-95"
                 >
                   Yes, Log Me Out
                 </button>
                 <button 
                   onClick={() => setShowLogoutModal(false)}
-                  className="w-full py-4 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold text-sm transition-all active:scale-95"
+                  className="w-full py-3 sm:py-4 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold text-[13px] sm:text-sm transition-all active:scale-95"
                 >
                   No, Keep Me In
                 </button>

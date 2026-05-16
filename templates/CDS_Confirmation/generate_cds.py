@@ -128,41 +128,30 @@ def generate_pdf(trade_data: dict, output_dir: str = None) -> str:
 
 
 def _escape_latex(data):
-    """Escape LaTeX special characters in trade data values."""
-    escaped = {}
-    for key, value in data.items():
-        if isinstance(value, str):
-            escaped[key] = _escape_latex_string(value)
-        elif isinstance(value, list):
-            escaped[key] = [_escape_latex_item(item) for item in value]
-        else:
-            escaped[key] = value
-    return escaped
-
-
-def _escape_latex_item(item):
-    """Escape LaTeX chars in a list item (string or dict)."""
-    if isinstance(item, str):
-        return _escape_latex_string(item)
-    elif isinstance(item, dict):
-        return {k: _escape_latex_string(v) if isinstance(v, str) else v for k, v in item.items()}
-    return item
-
-
-def _escape_latex_string(value):
-    replacements = {
-        "\\": r"\textbackslash{}",
-        "&": r"\&",
-        "%": r"\%",
-        "$": r"\$",
-        "#": r"\#",
-        "_": r"\_",
-        "{": r"\{",
-        "}": r"\}",
-        "~": r"\textasciitilde{}",
-        "^": r"\textasciicircum{}",
-    }
-    return "".join(replacements.get(char, char) for char in value)
+    """Recursively escape LaTeX special characters (&, %, $, #, etc.) in values.
+    Handles nested dicts, lists, and skips already-escaped characters."""
+    if isinstance(data, dict):
+        return {k: _escape_latex(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [_escape_latex(i) for i in data]
+    elif isinstance(data, str):
+        chars = {
+            '&': r'\&',
+            '%': r'\%',
+            '$': r'\$',
+            '#': r'\#',
+            '_': r'\_',
+            '{': r'\{',
+            '}': r'\}',
+            '~': r'\textasciitilde{}',
+            '^': r'\textasciicircum{}'
+        }
+        res = data
+        for char, escaped in chars.items():
+            if f"\\{char}" not in res:
+                res = res.replace(char, escaped)
+        return res
+    return data
 
 
 def main():

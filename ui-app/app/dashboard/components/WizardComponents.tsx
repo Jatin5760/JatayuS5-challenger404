@@ -10,9 +10,9 @@ export function SelectionStep({ stepDef, selections, onSelect }: {
   onSelect: (key: string, value: string) => void;
 }) {
   return (
-    <div className="max-w-2xl mx-auto space-y-8 py-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8 py-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="text-center">
-        <h2 className="text-2xl font-black text-[#1a1d2e] tracking-tight mb-2">{stepDef.title}</h2>
+        <h2 className="text-xl sm:text-2xl font-black text-[#1a1d2e] tracking-tight mb-2">{stepDef.title}</h2>
         <p className="text-sm text-gray-400">Select the applicable configuration for this trade.</p>
       </div>
       <div className="grid grid-cols-1 gap-4">
@@ -25,7 +25,7 @@ export function SelectionStep({ stepDef, selections, onSelect }: {
             <button
               key={v}
               onClick={() => onSelect(stepDef.field!.key, v)}
-              className={`p-6 rounded-[24px] border-2 text-left transition-all duration-300 flex items-center gap-4 group ${
+              className={`p-4 sm:p-6 rounded-[24px] border-2 text-left transition-all duration-300 flex items-center gap-3 sm:gap-4 group ${
                 active 
                   ? 'border-[#4f46e5] bg-indigo-50/50 shadow-lg shadow-indigo-500/10' 
                   : 'border-gray-100 bg-white hover:border-gray-200'
@@ -61,12 +61,12 @@ export function SectionStep({ section, stepData, onUpdate, aiMode, allData }: {
   allData: Record<string, unknown>;
 }) {
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
-      <div className="pb-8 border-b border-slate-100/80">
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{section.title}</h2>
+    <div className="space-y-8 sm:space-y-10 animate-in fade-in duration-500">
+      <div className="pb-6 sm:pb-8 border-b border-slate-100/80">
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">{section.title}</h2>
         <p className="text-[11px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1.5">Section Configuration</p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 lg:gap-x-10 gap-y-7 sm:gap-y-10">
         {(section.fields || []).map((f) => (
           <div key={f.key} className={f.type === 'textarea' || f.type.startsWith('repeater') ? 'md:col-span-2' : ''}>
             <FieldRenderer field={f} stepData={stepData} onUpdate={onUpdate} aiMode={aiMode} allData={allData || {}} />
@@ -98,12 +98,12 @@ export function FieldsStep({ title, fields, stepData, onUpdate, aiMode, allData 
   allData: Record<string, unknown>;
 }) {
   return (
-    <div className="space-y-12 animate-in fade-in duration-500">
-      <div className="pb-8 border-b border-slate-100/80">
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{title}</h2>
+    <div className="space-y-8 sm:space-y-12 animate-in fade-in duration-500">
+      <div className="pb-6 sm:pb-8 border-b border-slate-100/80">
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">{title}</h2>
         <p className="text-[11px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1.5">Field Management</p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 lg:gap-x-10 gap-y-7 sm:gap-y-10">
         {fields.map((f) => (
           <div key={f.key} className={f.type === 'textarea' || f.type.startsWith('repeater') ? 'md:col-span-2' : ''}>
             <FieldRenderer field={f} stepData={stepData} onUpdate={onUpdate} aiMode={aiMode} allData={allData} />

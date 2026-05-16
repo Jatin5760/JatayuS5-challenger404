@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.join(_ROOT, "templates", "Equity_TRS"))
 from generate_fx_ndf import generate_pdf as generate_fx_pdf
 from generate_irs import generate_pdf as generate_irs_pdf
 from generate_cds import generate_pdf as generate_cds_pdf
-from Generate_Equity_TRS import generate_pdf as generate_equity_trs_pdf
+from generate_equity_trs import generate_pdf as generate_equity_trs_pdf
 
 OUTPUT_DIR = os.path.join(_ROOT, "output_confirmations", "temp")
 os.makedirs(OUTPUT_DIR, exist_ok=True)

@@ -15,11 +15,16 @@ export default function SignupPage() {
     password: '',
     confirmPassword: '',
   });
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+    if (type === 'checkbox') {
+      setTermsAccepted(checked);
+      return;
+    }
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -46,6 +51,12 @@ export default function SignupPage() {
 
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!termsAccepted) {
+      setError('You must accept the Terms of Service and Privacy Policy');
       setIsLoading(false);
       return;
     }
@@ -153,6 +164,8 @@ export default function SignupPage() {
               <input
                 type="checkbox"
                 id="terms"
+                checked={termsAccepted}
+                onChange={handleChange}
                 className="mt-1 rounded border-border cursor-pointer"
               />
               <label htmlFor="terms" className="text-sm text-foreground-secondary cursor-pointer">

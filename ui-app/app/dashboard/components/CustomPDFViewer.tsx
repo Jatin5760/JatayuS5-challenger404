@@ -32,23 +32,23 @@ export default function CustomPDFViewer({ pdfUrl, filename, onClose, onDownload,
   return (
     <div className="flex flex-col h-full bg-[#f8fafc] animate-in fade-in duration-500">
       {/* Top Professional Toolbar */}
-      <div className="h-16 px-8 bg-white border-b border-slate-200 flex items-center justify-between shadow-sm z-20">
-        <div className="flex items-center gap-4">
-          <div>
-            <h3 className="text-[15px] font-bold text-slate-800 tracking-tight">{filename}</h3>
+      <div className="min-h-16 px-4 sm:px-6 lg:px-8 py-3 bg-white border-b border-slate-200 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between shadow-sm z-20">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="min-w-0">
+            <h3 className="text-[15px] font-bold text-slate-800 tracking-tight truncate">{filename}</h3>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Digital Document Workspace</p>
           </div>
         </div>
 
         {/* Center: Zoom Controls */}
-        <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
+        <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200 w-fit">
           <button onClick={zoomOut} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-500"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 12H4"/></svg></button>
           <span className="text-xs font-black text-slate-600 w-16 text-center">{Math.round(scale * 100)}%</span>
           <button onClick={zoomIn} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-500"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg></button>
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={onClose}
             className="w-11 h-11 bg-slate-50 text-slate-500 rounded-xl flex items-center justify-center hover:bg-slate-200 transition-all shadow-sm"
@@ -76,7 +76,7 @@ export default function CustomPDFViewer({ pdfUrl, filename, onClose, onDownload,
       {/* Main Workspace */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left: Page Thumbnails Sidebar */}
-        <div className="w-[200px] bg-slate-50 border-r border-slate-200 p-4 overflow-y-auto hidden md:flex flex-col gap-4 custom-scrollbar">
+        <div className="w-[200px] bg-slate-50 border-r border-slate-200 p-4 overflow-y-auto hidden xl:flex flex-col gap-4 custom-scrollbar">
           <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2 px-2">Pages</h4>
           <div className="flex flex-col gap-6">
             {Array.from(new Array(numPages), (_, index) => (
@@ -107,13 +107,13 @@ export default function CustomPDFViewer({ pdfUrl, filename, onClose, onDownload,
         </div>
 
         {/* Center: PDF Canvas (Continuous Scroll) */}
-        <div className="flex-1 overflow-auto p-12 flex flex-col items-center gap-8 bg-[#f1f5f9] custom-scrollbar relative scroll-smooth">
+        <div className="flex-1 overflow-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center gap-8 bg-[#f1f5f9] custom-scrollbar relative scroll-smooth">
           <Document
             file={pdfUrl}
             onLoadSuccess={onDocumentLoadSuccess}
             className="flex flex-col items-center gap-12"
             loading={
-              <div className="bg-white w-[595px] h-[842px] flex flex-col items-center justify-center gap-4 rounded-sm shadow-sm">
+              <div className="bg-white w-[90vw] max-w-[595px] h-[60vh] max-h-[842px] flex flex-col items-center justify-center gap-4 rounded-sm shadow-sm">
                 <div className="w-12 h-12 border-4 border-slate-100 border-t-indigo-500 rounded-full animate-spin" />
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Loading Document...</p>
               </div>
@@ -123,7 +123,7 @@ export default function CustomPDFViewer({ pdfUrl, filename, onClose, onDownload,
               <div 
                 key={`full_page_${index + 1}`} 
                 id={`page_${index + 1}`}
-                className="shadow-[0_20px_50px_rgba(0,0,0,0.1)] transition-transform duration-300 origin-top"
+                className="max-w-full shadow-[0_20px_50px_rgba(0,0,0,0.1)] transition-transform duration-300 origin-top"
                 style={{ transform: `scale(${scale})` }}
               >
                 <Page 
@@ -131,7 +131,7 @@ export default function CustomPDFViewer({ pdfUrl, filename, onClose, onDownload,
                   renderTextLayer={true}
                   renderAnnotationLayer={true}
                   className="rounded-sm overflow-hidden"
-                  width={750}
+                  width={Math.min(750, typeof window !== 'undefined' ? Math.min(window.innerWidth - 32, 750) : 750)}
                 />
               </div>
             ))}

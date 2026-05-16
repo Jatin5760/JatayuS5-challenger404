@@ -67,4 +67,8 @@ miktexpackages.txt
 
 test cases/
 
+# ── Bench / scratch outputs ──────────────────────────────────
+_bench_out/
+scratch/
+
 External files not the part of project/

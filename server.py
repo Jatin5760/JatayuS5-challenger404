@@ -39,9 +39,11 @@ load_dotenv()  # local development only; production injects env vars at runtime
 from bson import ObjectId
 from bson.errors import InvalidId
 from pymongo import MongoClient
-from pymongo.errors import PyMongoError, ServerSelectionTimeoutError
+from pymongo.errors import ConfigurationError, PyMongoError, ServerSelectionTimeoutError
 from flask import Flask, g, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -67,7 +69,7 @@ from agents.gemini_helper import call_gemini
 from generate_fx_ndf import generate_pdf as generate_fx_pdf
 from generate_irs import generate_pdf as generate_irs_pdf
 from generate_cds import generate_pdf as generate_cds_pdf
-from Generate_Equity_TRS import generate_pdf as generate_equity_trs_pdf
+from generate_equity_trs import generate_pdf as generate_equity_trs_pdf
 
 # Adobe PDF Services SDK (for Word conversion)
 try:
@@ -111,6 +113,8 @@ _last_pdf_cleanup = 0.0
 AUTH_SECRET = os.environ.get("AUTH_SECRET") or os.environ.get("SECRET_KEY")
 if IS_PRODUCTION and not AUTH_SECRET:
     raise RuntimeError("AUTH_SECRET is required when APP_ENV=production")
+if IS_PRODUCTION and AUTH_SECRET and len(AUTH_SECRET) < 16:
+    raise RuntimeError("AUTH_SECRET must be at least 16 characters in production")
 AUTH_SECRET = AUTH_SECRET or "dev-only-change-me"
 AUTH_SALT = "tradedocai-auth-v1"
 AUTH_MAX_AGE_SECONDS = int(os.environ.get("AUTH_MAX_AGE_SECONDS", str(60 * 60 * 24 * 7)))
@@ -349,9 +353,58 @@ def _extract_chat_action(reply: str, user_msg: str) -> tuple[str, str | None]:
 
     return reply, action
 
+def _detect_fast_navigation(user_msg: str) -> str | None:
+    """Detects simple navigation commands without calling AI to save time/cost."""
+    msg = user_msg.lower().strip()
+    
+    # Common navigation keywords
+    keywords = {
+        "landing": "landing", "home": "landing", "dashboard": "landing",
+        "analytics": "analytics", "charts": "analytics", "stats": "analytics",
+        "ai": "ai", "extraction": "ai", "upload": "ai",
+        "settings": "settings-profile", "profile": "settings-profile",
+        "documents": "my-documents", "history": "my-documents",
+        "fx ndf form": "form-fx_ndf", "irs form": "form-irs", "cds form": "form-cds",
+        "equity trs form": "form-equity_trs", "create fx": "form-fx_ndf",
+        "create irs": "form-irs", "create cds": "form-cds", "create trs": "form-equity_trs",
+    }
+    
+    # If message is very short and contains a keyword
+    for kw, target in keywords.items():
+        if kw == msg: return target
+        
+    # Standard navigation patterns: "go to cds", "open analytics" etc.
+    prefixes = ["go to", "open", "show", "switch to", "take me to", "navigate to", "move to"]
+    for prefix in prefixes:
+        if msg.startswith(prefix):
+            remaining = msg[len(prefix):].strip()
+            for kw, target in keywords.items():
+                if kw in remaining:
+                    print(f"  ⚡ Fast Navigation Triggered: {target}")
+                    return target
+                    
+    # Also check if just the keyword is present in a short message
+    if len(msg.split()) <= 3:
+        for kw, target in keywords.items():
+            if kw in msg:
+                print(f"  ⚡ Fast Navigation Triggered (Keyword): {target}")
+                return target
+                    
+    return None
+
 # ── MongoDB ───────────────────────────────
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
-MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME")
+MONGO_URI = os.getenv("MONGO_URI") or ("" if IS_PRODUCTION else "mongodb://localhost:27017/tradedocai")
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
+app.config["MONGO_URI"] = MONGO_URI
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-12345")
+
+# Initialize Limiter
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=["500 per day", "100 per hour"],
+    storage_uri="memory://",
+)
 _mongo_client = None
 _db = None
 
@@ -390,10 +443,25 @@ def _mongo_client_options() -> dict:
     return options
 
 
+def _validate_mongo_config() -> None:
+    if not MONGO_URI:
+        raise ConfigurationError("MONGO_URI is required")
+
+    if IS_PRODUCTION:
+        parsed = urlparse(MONGO_URI)
+        host = parsed.hostname or ""
+        local_hosts = {"localhost", "127.0.0.1", "mongo"}
+        if host in local_hosts or host.endswith(".local"):
+            raise ConfigurationError(
+                "Production MONGO_URI must point to a managed MongoDB service such as Atlas, not a local Docker host."
+            )
+
+
 def get_db():
     """Lazy-connect to MongoDB. Returns the tradedocai database."""
     global _mongo_client, _db
     if _db is None:
+        _validate_mongo_config()
         client = MongoClient(MONGO_URI, **_mongo_client_options())
         db = client[_mongo_db_name()]
         try:
@@ -423,7 +491,8 @@ def _ensure_indexes(db):
 def _database_error_response(error: Exception):
     traceback.print_exc()
     return jsonify({
-        "error": "Database connection failed. Check MONGO_URI, MongoDB Atlas network access/IP allowlist, credentials, and TLS settings."
+        "error": "Database connection failed. Check MONGO_URI, MongoDB Atlas network access/IP allowlist, credentials, and TLS settings.",
+        "detail": str(error) if not IS_PRODUCTION else "Database is unavailable",
     }), 503
 
 
@@ -560,13 +629,15 @@ def health_live():
 @app.route("/health/ready", methods=["GET"])
 def health_ready():
     checks = {"mongo": False, "gemini_configured": bool(os.environ.get("GEMINI_API_KEY"))}
+    errors = {}
     status = 200
     try:
         get_db().command("ping")
         checks["mongo"] = True
-    except Exception:
+    except Exception as e:
         status = 503
-    return jsonify({"status": "ready" if status == 200 else "not_ready", "checks": checks}), status
+        errors["mongo"] = str(e) if not IS_PRODUCTION else "Database is unavailable"
+    return jsonify({"status": "ready" if status == 200 else "not_ready", "checks": checks, "errors": errors}), status
 
 
 @app.route("/api/auth/signup", methods=["POST"])
@@ -707,13 +778,10 @@ def api_delete_chat_session(session_id):
         return jsonify({"error": "Failed to delete chat session"}), 500
 
 
-@app.route("/api/chat", methods=["POST", "OPTIONS"], strict_slashes=False)
+@app.route("/api/chat", methods=["POST"])
 @require_auth
-def chat_copilot():
-    if request.method == "OPTIONS":
-        return jsonify({"status": "ok"}), 200
-
-    print("  💬 Chat Copilot request received")
+@limiter.limit("30 per minute")
+def api_chat():
     try:
         body = _json_body()
         user_msg = str(body.get("message", "")).strip()
@@ -726,7 +794,31 @@ def chat_copilot():
             session = _create_chat_session(db, user_msg)
 
         history = _load_chat_history(db, session["_id"])
-        prompt = _build_chat_prompt(user_msg, history)
+        
+        doc_type = body.get("doc_type")
+        schema = body.get("schema")
+        current_data = body.get("current_data")
+
+        # 1. Fast-Track Navigation (Skip LLM for simple "go to" commands)
+        fast_action = _detect_fast_navigation(user_msg)
+        if fast_action and not re.search(r"\?", user_msg):
+            reply = f"Sure, opening {fast_action.replace('-', ' ')} for you."
+            action = fast_action
+            assistant_message = _save_chat_message(db, session["_id"], "assistant", reply, action)
+            return jsonify({
+                "reply": reply,
+                "action": action,
+                "session": _serialise_chat_session(session),
+                "message": _serialise_chat_message(assistant_message),
+            })
+
+        # 2. Regular AI Response
+        if doc_type and schema and current_data is not None:
+            from agents.assistant_agent import build_assistant_prompt
+            prompt = build_assistant_prompt(user_msg, doc_type, schema, current_data, history)
+        else:
+            prompt = _build_chat_prompt(user_msg, history)
+
         _save_chat_message(db, session["_id"], "user", user_msg)
 
         reply = call_gemini(prompt, model_name="gemini-flash-latest")
@@ -737,10 +829,12 @@ def chat_copilot():
         if action:
             print(f"  🚀 Navigation detected: {action}")
 
+        session_data = _serialise_chat_session(session) if session else None
+        
         return jsonify({
             "reply": reply,
             "action": action,
-            "session": _serialise_chat_session(session),
+            "session": session_data,
             "message": _serialise_chat_message(assistant_message),
         })
     except ValueError as e:
@@ -978,6 +1072,7 @@ def api_delete_document(doc_id):
 
 @app.route("/ai/extract", methods=["POST"])
 @require_auth
+@limiter.limit("5 per minute")
 def api_ai_extract():
     """
     Accepts email text, runs classify → extract agents.
@@ -1195,6 +1290,7 @@ def api_convert_word():
 
 @app.route("/validate", methods=["POST"])
 @require_auth
+@limiter.limit("5 per minute")
 def api_validate():
     """
     Accepts email_text + pdf_filename, runs validation agent.
@@ -1270,8 +1366,6 @@ if __name__ == "__main__":
     print("=" * 55)
     print()
 
-    _cleanup_old_generated_files(force=True)
-    
     try:
         get_db().command("ping")
         print("  ✅ MongoDB connected successfully")

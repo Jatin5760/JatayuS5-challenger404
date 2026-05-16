@@ -17,7 +17,7 @@ import { SelectionStep, SectionStep, FieldsStep } from './components/WizardCompo
 import ChatCopilot from './components/ChatCopilot';
 
 // Replicated Components
-import DocumentOverviewCards from './components/DocumentOverviewCards';
+import { StatusOverviewCard, TimeSavedCard } from './components/DocumentOverviewCards';
 import MoneySavedCard from './components/MoneySavedCard';
 import RecentActivitySection from './components/RecentActivitySection';
 import ActivityChart from './components/ActivityChart';
@@ -76,10 +76,11 @@ const SCHEMA_REGISTRY = [
 
 export default function DashboardPage() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
   // ── State ────────────────────────────────
   const [schemas, setSchemas] = useState<Record<string, Schema>>({});
-  const [page, setPage] = useState<AppPage>('landing');
+  const [page, setPage] = useState<AppPage>(getInitialPage);
   const [modal, setModal] = useState<ModalType>('none');
   const [activeSchema, setActiveSchema] = useState<Schema | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
@@ -104,22 +105,19 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState('User');
   const [backendDown, setBackendDown] = useState(false);
   const [backendError, setBackendError] = useState('');
-  const [settingsSub, setSettingsSub] = useState<SettingsTab>('edit-profile');
+  const [settingsSub, setSettingsSub] = useState<SettingsTab>(getInitialSettingsTab);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ── URL Sync & Init ───────────────────────
   useEffect(() => {
-    // Initialize client-only state
-    setPage(getInitialPage());
-    setUserName(getStoredUserName());
-    setSettingsSub(getInitialSettingsTab());
-  }, []);
-
-  useEffect(() => {
+    setMounted(true);
     const token = localStorage.getItem('authToken');
     if (!token) {
       router.push('/login');
       return;
     }
+    const timer = window.setTimeout(() => setUserName(getStoredUserName()), 0);
+    return () => window.clearTimeout(timer);
   }, [router]);
 
   // 2. Sync State to URL
@@ -206,6 +204,7 @@ export default function DashboardPage() {
 
   // ── Navigation Logic ──────────────────────
   const goHome = useCallback(() => {
+    setSidebarOpen(false);
     setPage('landing');
     setActiveSchema(null);
     setCurrentStep(0);
@@ -369,7 +368,7 @@ export default function DashboardPage() {
     if (!currentPdfFilename) { showToast('⚠️ Generate PDF first'); return; }
     showLoading('Running validation...', 'Comparing PDF against email with AI');
     try {
-      const preferredModel = localStorage.getItem('preferredModel') || 'gemini-2.5-pro';
+      const preferredModel = localStorage.getItem('preferredModel') || 'gemini-flash-latest';
       const response = await fetch(`${API}/validate`, {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
@@ -395,11 +394,11 @@ export default function DashboardPage() {
     }
   }, [aiEmailText, currentPdfFilename, currentPdfFileId, showToast]);
 
-  const submitAIExtract = useCallback(async () => {
+  const submitAIExtract = useCallback(async (modelChoice?: string) => {
     if (!aiEmailText.trim()) { showToast('Please paste text first'); return; }
     showLoading('Analyzing email...', 'Classifying document type');
     try {
-      const preferredModel = localStorage.getItem('preferredModel') || 'gemini-2.5-pro';
+      const preferredModel = modelChoice || localStorage.getItem('preferredModel') || 'gemini-flash-latest';
       const response = await fetch(`${API}/ai/extract`, {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
@@ -605,7 +604,7 @@ export default function DashboardPage() {
   const handleLogout = () => { clearSession(); router.push('/login'); };
 
   return (
-    <div className="flex h-screen overflow-hidden selection:bg-indigo-100" style={{ background: '#f8f9fc', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div className="flex h-[100dvh] overflow-hidden selection:bg-indigo-100" style={{ background: '#f8f9fc', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <style dangerouslySetInnerHTML={{ __html: `
         .font-display { font-family: var(--font-dm-serif-display), 'DM Serif Display', Georgia, serif; }
         .font-body { font-family: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif; }
@@ -786,13 +785,21 @@ export default function DashboardPage() {
           text-shadow: 0.025em 0.25em 0.05em rgba(0, 0, 0, 0.12);
         }
       ` }} />
-      <DashboardSidebar userName={userName} activePage={page} onGoHome={goHome} onLogout={handleLogout} onSetPage={setPage} />
+      <DashboardSidebar
+        userName={userName}
+        activePage={page}
+        onGoHome={goHome}
+        onLogout={handleLogout}
+        onSetPage={(nextPage) => { setPage(nextPage); setSidebarOpen(false); }}
+        isMobileOpen={sidebarOpen}
+        onCloseMobile={() => setSidebarOpen(false)}
+      />
 
       <main className="flex-1 flex flex-col min-w-0 relative">
         
         {/* Top Header — glassmorphic, matches landing navbar */}
         <header
-          className="h-[68px] px-8 flex items-center justify-between sticky top-0 z-10"
+          className="min-h-[68px] px-4 sm:px-6 lg:px-8 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sticky top-0 z-10"
           style={{
             background: 'rgba(255,255,255,0.72)',
             backdropFilter: 'blur(20px) saturate(1.4)',
@@ -801,8 +808,15 @@ export default function DashboardPage() {
             boxShadow: '0 1px 16px rgba(0,0,0,0.04)',
           }}
         >
-          <div className="flex items-center gap-3">
-            {page !== 'landing' && (
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-white text-slate-600 border border-slate-200 shadow-sm lg:hidden"
+              aria-label="Open navigation"
+            >
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            {mounted && page !== 'landing' && (
               <button
                 onClick={handleBack}
                 className="w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200"
@@ -813,17 +827,17 @@ export default function DashboardPage() {
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
               </button>
             )}
-            <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', fontFamily: "'DM Sans', system-ui, sans-serif", letterSpacing: '-0.02em', lineHeight: 1 }}>
-              {page === 'landing' ? 'Dashboard Overview' : page === 'analytics' ? 'Analytics Overview' : page === 'ai' ? 'AI Extraction Engine' : activeSchema?.name || 'Document Editor'}
+            <h1 className="truncate text-base sm:text-xl" style={{ fontWeight: 700, color: '#0f172a', fontFamily: "'DM Sans', system-ui, sans-serif", letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+              {!mounted ? 'Dashboard Overview' : page === 'landing' ? 'Dashboard Overview' : page === 'analytics' ? 'Analytics Overview' : page === 'ai' ? 'AI Extraction Engine' : activeSchema?.name || 'Document Editor'}
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex w-full items-center gap-2 overflow-x-auto pb-1 sm:w-auto sm:justify-end sm:pb-0">
             {/* Header Icons Removed for Minimalist Look */}
             {page === 'form' && (
               <>
-                <button onClick={() => saveDocument(assembleJSON())} className="transition-all duration-200" style={{ padding: '8px 18px', background: 'white', border: '1px solid rgba(226,232,240,0.9)', color: '#475569', borderRadius: '999px', fontSize: '12px', fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#6366f1'; (e.currentTarget as HTMLButtonElement).style.color = '#6366f1'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(226,232,240,0.9)'; (e.currentTarget as HTMLButtonElement).style.color = '#475569'; }}>Save Draft</button>
-                <button onClick={generatePDF} className="transition-all duration-200" style={{ padding: '8px 20px', background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', color: 'white', borderRadius: '999px', fontSize: '12px', fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif", border: '1px solid #4338ca', boxShadow: '0 6px 18px rgba(79,70,229,0.28)' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 24px rgba(79,70,229,0.38)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 18px rgba(79,70,229,0.28)'; }}>Generate PDF</button>
+                <button onClick={() => saveDocument(assembleJSON())} className="transition-all duration-200 whitespace-nowrap" style={{ padding: '8px 18px', background: 'white', border: '1px solid rgba(226,232,240,0.9)', color: '#475569', borderRadius: '999px', fontSize: '12px', fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#6366f1'; (e.currentTarget as HTMLButtonElement).style.color = '#6366f1'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(226,232,240,0.9)'; (e.currentTarget as HTMLButtonElement).style.color = '#475569'; }}>Save Draft</button>
+                <button onClick={generatePDF} className="transition-all duration-200 whitespace-nowrap" style={{ padding: '8px 20px', background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', color: 'white', borderRadius: '999px', fontSize: '12px', fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif", border: '1px solid #4338ca', boxShadow: '0 6px 18px rgba(79,70,229,0.28)' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 24px rgba(79,70,229,0.38)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 18px rgba(79,70,229,0.28)'; }}>Generate PDF</button>
               </>
             )}
             {page === 'pdf' && (
@@ -831,7 +845,7 @@ export default function DashboardPage() {
                 {showValidateOnPdf && (
                   <button 
                     onClick={requestValidation} 
-                    className="transition-all duration-300 flex items-center gap-3 group"
+                    className="transition-all duration-300 flex items-center gap-3 group whitespace-nowrap"
                     style={{ 
                       padding: '10px 24px', 
                       background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', 
@@ -850,15 +864,15 @@ export default function DashboardPage() {
                     Generate Validation Report
                   </button>
                 )}
-                <button onClick={() => setPage('form')} style={{ padding: '10px 22px', background: 'white', border: '1px solid rgba(226,232,240,0.9)', color: '#475569', borderRadius: '999px', fontSize: '14px', fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Edit Data</button>
-                <button onClick={downloadWord} style={{ padding: '10px 22px', background: 'white', border: '1px solid rgba(226,232,240,0.9)', color: '#475569', borderRadius: '999px', fontSize: '14px', fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Export Word</button>
-                <button onClick={() => { const a = document.createElement('a'); a.href = currentPdfBlobUrl!; a.download = currentPdfFilename; a.click(); }} style={{ padding: '10px 26px', background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: 'white', borderRadius: '999px', fontSize: '14px', fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif", border: '1px solid #047857', boxShadow: '0 6px 18px rgba(5,150,105,0.25)' }}>Download PDF</button>
+                <button onClick={() => setPage('form')} className="whitespace-nowrap" style={{ padding: '10px 22px', background: 'white', border: '1px solid rgba(226,232,240,0.9)', color: '#475569', borderRadius: '999px', fontSize: '14px', fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Edit Data</button>
+                <button onClick={downloadWord} className="whitespace-nowrap" style={{ padding: '10px 22px', background: 'white', border: '1px solid rgba(226,232,240,0.9)', color: '#475569', borderRadius: '999px', fontSize: '14px', fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Export Word</button>
+                <button onClick={() => { const a = document.createElement('a'); a.href = currentPdfBlobUrl!; a.download = currentPdfFilename; a.click(); }} className="whitespace-nowrap" style={{ padding: '10px 26px', background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: 'white', borderRadius: '999px', fontSize: '14px', fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif", border: '1px solid #047857', boxShadow: '0 6px 18px rgba(5,150,105,0.25)' }}>Download PDF</button>
               </>
             )}
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto scroll-smooth" style={{ padding: '32px 32px 48px' }}>
+        <div className="flex-1 overflow-y-auto scroll-smooth px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
           {backendDown && (
             <div className="max-w-4xl mx-auto mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 flex items-center gap-4 text-red-700 animate-pulse">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
@@ -872,8 +886,8 @@ export default function DashboardPage() {
             </div>
           )}
           {page === 'landing' && (
-            <div className="w-full max-w-4xl mx-auto flex flex-col items-center justify-center py-20 animate-fade-in">
-              <div className="w-24 h-24 rounded-[32px] bg-white border border-border-secondary flex items-center justify-center mb-8 shadow-sm">
+            <div className="w-full max-w-4xl mx-auto flex flex-col items-center justify-center py-10 sm:py-14 md:py-20 animate-fade-in px-4">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[24px] sm:rounded-[32px] bg-white border border-border-secondary flex items-center justify-center mb-6 sm:mb-8 shadow-sm">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="#1814f3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   <path d="M7 7H17" stroke="#1814f3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -881,18 +895,18 @@ export default function DashboardPage() {
                   <path d="M7 17H13" stroke="#1814f3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
-              <h1 className="text-3xl font-bold text-text-secondary font-inter text-center mb-4">
+              <h1 className="text-2xl sm:text-3xl font-bold text-text-secondary font-inter text-center mb-3 sm:mb-4">
                 Welcome to your Workspace
               </h1>
-              <p className="text-text-tertiary text-center max-w-lg mb-12 leading-relaxed font-medium">
+              <p className="text-text-tertiary text-center max-w-lg mb-8 sm:mb-12 leading-relaxed font-medium text-sm sm:text-base px-2">
                 Create your trade documents manually or use our AI-powered extraction to generate them from raw text and emails.
               </p>
-              <div className="flex flex-row gap-8 justify-center items-center">
-                <button 
-                  className="glass-btn-wrap text-[15px] md:text-lg lg:text-xl cursor-pointer"
+              <div className="flex flex-row gap-3 sm:gap-6 md:gap-8 justify-center items-center w-full px-4 flex-wrap">
+                <button
+                  className="glass-btn-wrap text-sm sm:text-[15px] md:text-lg lg:text-xl cursor-pointer w-auto max-w-[280px]"
                   onClick={() => setModal('new-doc')}
                 >
-                  <div className="glass-btn md:px-10 md:py-4 lg:px-14 lg:py-6" style={{ pointerEvents: 'auto' }}>
+                  <div className="glass-btn px-8 py-3 sm:px-10 sm:py-4 md:px-10 md:py-4 lg:px-14 lg:py-6" style={{ pointerEvents: 'auto' }}>
                     <span style={{ color: '#000', fontWeight: 600, fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif' }}>
                       New Document
                     </span>
@@ -900,11 +914,11 @@ export default function DashboardPage() {
                   <div className="glass-btn-shadow" />
                 </button>
 
-                <button 
-                  className="glass-btn-wrap text-[15px] md:text-lg lg:text-xl cursor-pointer"
+                <button
+                  className="glass-btn-wrap text-sm sm:text-[15px] md:text-lg lg:text-xl cursor-pointer w-auto max-w-[280px]"
                   onClick={() => setPage('analytics')}
                 >
-                  <div className="glass-btn md:px-10 md:py-4 lg:px-14 lg:py-6" style={{ pointerEvents: 'auto' }}>
+                  <div className="glass-btn px-8 py-3 sm:px-10 sm:py-4 md:px-10 md:py-4 lg:px-14 lg:py-6" style={{ pointerEvents: 'auto' }}>
                     <span style={{ color: '#000', fontWeight: 600, fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif' }}>
                       View Analytics
                     </span>
@@ -912,38 +926,30 @@ export default function DashboardPage() {
                   <div className="glass-btn-shadow" />
                 </button>
               </div>
-            </div>
-          )}
 
-          {page === 'analytics' && (
-            <div className="w-full max-w-[1440px] mx-auto flex flex-col gap-8 animate-fade-in">
-              {/* Row 1: Active Trades & Money Saved */}
-              <section className="flex flex-col lg:flex-row gap-8 w-full">
-                <DocumentOverviewCards documents={recentDocs} onLoad={openDocInForm} />
-                <MoneySavedCard documents={recentDocs} />
-              </section>
-
-              {/* Row 2: Processing Activity & Document Types */}
-              <section className="flex flex-col lg:flex-row gap-8 w-full">
-                <ActivityChart documents={recentDocs} />
-                <DocumentTypeBreakdown documents={recentDocs} />
-              </section>
-
-              {/* Row 3: Recent Activity & Efficiency */}
-              <section className="flex flex-col lg:flex-row gap-8 w-full">
-                <RecentActivitySection documents={recentDocs} onLoad={openDocInForm} />
-                <ExtractionEfficiencyChart documents={recentDocs} />
-              </section>
-
-              {/* Legacy Recent Documents Table */}
-              <section className="w-full mt-4">
+              {/* All Documents Section */}
+              <section className="w-full max-w-[1440px] mx-auto mt-8 sm:mt-12 px-4">
                 <div className="flex flex-row justify-between items-center w-full mb-5">
-                  <h2 className="text-xl font-semibold text-text-secondary font-inter">
+                  <h2 className="text-lg sm:text-xl font-semibold text-text-secondary font-inter">
                     All Documents
                   </h2>
                 </div>
                 <RecentDocuments documents={recentDocs} onLoad={openDocInForm} />
               </section>
+            </div>
+          )}
+
+          {page === 'analytics' && (
+            <div className="w-full max-w-[1440px] mx-auto grid grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-6 lg:gap-8 animate-fade-in px-1 sm:px-0">
+              <div className="col-span-2">
+                <StatusOverviewCard documents={recentDocs} />
+              </div>
+              <TimeSavedCard documents={recentDocs} />
+              <MoneySavedCard documents={recentDocs} />
+              <ActivityChart documents={recentDocs} />
+              <DocumentTypeBreakdown documents={recentDocs} />
+              <RecentActivitySection documents={recentDocs} onLoad={openDocInForm} />
+              <ExtractionEfficiencyChart documents={recentDocs} />
             </div>
           )}
 
@@ -961,8 +967,7 @@ export default function DashboardPage() {
               documents={recentDocs} 
               onViewPdf={(doc) => {
                 // Future: Fetch PDF from GCP and set currentPdfBlobUrl
-                console.log('Previewing PDF for:', doc._id);
-              }} 
+              }}
               onEdit={openDocInForm}
               onDelete={handleDeleteDocument}
             />
@@ -1067,12 +1072,13 @@ export default function DashboardPage() {
                   borderRadius: '24px',
                   border: '1px solid rgba(226,232,240,0.8)',
                   boxShadow: '0 4px 32px rgba(0,0,0,0.06)',
-                  padding: '40px',
                 }}
               >
-                {renderFormContent()}
+                <div className="p-5 sm:p-8 lg:p-10">
+                  {renderFormContent()}
+                </div>
                 <div
-                  className="mt-10 pt-8 flex items-center justify-between"
+                  className="mx-5 sm:mx-8 lg:mx-10 pb-5 sm:pb-8 pt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between"
                   style={{ borderTop: '1px solid rgba(241,245,249,1)' }}
                 >
                   <button
@@ -1189,9 +1195,9 @@ export default function DashboardPage() {
 
       {/* New Document Options Modal */}
       {modal === 'new-doc' && (
-        <div className="fixed inset-0 z-120 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-120 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="absolute inset-0" onClick={() => setModal('none')} />
-          <div className="bg-white rounded-[32px] w-full max-w-lg relative shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-t-[32px] sm:rounded-[32px] w-full max-w-lg relative shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300">
             <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <div>
                 <h3 className="text-xl font-bold text-text-secondary">New Document</h3>
@@ -1245,10 +1251,10 @@ export default function DashboardPage() {
 
       {/* Document Type Selection Modal */}
       {modal === 'type' && (
-        <div className="fixed inset-0 z-130 flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-130 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setModal('none')} />
-          <div className="bg-white rounded-[40px] w-full max-w-2xl relative shadow-[0_32px_80px_rgba(0,0,0,0.4)] overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
-            <div className="p-10 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
+          <div className="bg-white rounded-t-[28px] sm:rounded-[40px] w-full max-w-2xl max-h-[90dvh] relative shadow-[0_32px_80px_rgba(0,0,0,0.4)] overflow-y-auto animate-in slide-in-from-bottom duration-300 border border-white/20">
+            <div className="p-6 sm:p-10 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
               <div>
                 <h3 className="text-2xl font-black text-text-secondary tracking-tight">Select Asset Class</h3>
                 <p className="text-sm text-text-tertiary font-medium">Choose a template to start manual trade capture.</p>
@@ -1258,7 +1264,7 @@ export default function DashboardPage() {
               </button>
             </div>
             
-            <div className="p-10 grid grid-cols-2 gap-6">
+            <div className="p-6 sm:p-10 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {[
                 { id: 'fx_ndf', name: 'FX NDF', sub: 'Foreign Exchange', color: '#4f46e5', bg: 'rgba(79,70,229,0.08)', hoverBorder: '#4f46e5', icon: <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.67 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.407-2.67-1M12 16v1m-4-4h8m-8 4h8a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> },
                 { id: 'irs', name: 'Interest Rate Swap', sub: 'IRS Contracts', color: '#7c3aed', bg: 'rgba(124,58,237,0.08)', hoverBorder: '#7c3aed', icon: <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg> },
@@ -1268,7 +1274,7 @@ export default function DashboardPage() {
                 <button 
                   key={t.id}
 	                  onClick={() => { selectType(t.id); setModal('none'); }}
-	                  className="flex flex-col items-center gap-4 p-8 rounded-[40px] border-2 border-gray-100 transition-all duration-300 group text-center relative overflow-hidden"
+	                  className="flex flex-col items-center gap-4 p-6 sm:p-8 rounded-[28px] sm:rounded-[40px] border-2 border-gray-100 transition-all duration-300 group text-center relative overflow-hidden"
 	                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.hoverBorder; e.currentTarget.style.backgroundColor = t.bg; e.currentTarget.style.boxShadow = `0 20px 40px ${t.color}15`; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(243,244,246,1)'; e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.boxShadow = 'none'; }}
                 >
@@ -1286,10 +1292,13 @@ export default function DashboardPage() {
         </div>
       )}
       {/* Chat Copilot */}
-      <div className="fixed bottom-8 right-8 z-140">
-        <ChatCopilot onNavigate={(dest) => {
+      <div className="fixed bottom-4 right-4 z-140 sm:bottom-6 sm:right-6 md:bottom-8 md:right-8">
+        <ChatCopilot 
+          docType={page === 'form' ? activeSchema?.id : null}
+          schema={page === 'form' ? activeSchema : null}
+          currentData={page === 'form' ? { ...irsSelections, ...stepData } : null}
+          onNavigate={(dest) => {
           const targetRaw = dest.toLowerCase().trim();
-          console.log('Dashboard received navigate command:', targetRaw);
 
           const pageMap: Record<string, AppPage> = {
             'landing': 'landing', 'home': 'landing', 'dashboard': 'landing',
@@ -1317,7 +1326,6 @@ export default function DashboardPage() {
           }
 
           if (actualPage) {
-            console.log('Switching page to:', actualPage);
             setPage(actualPage);
             setModal('none');
 

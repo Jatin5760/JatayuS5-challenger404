@@ -54,22 +54,22 @@ export default function StatsGrid({ total }: StatsProps) {
 
   return (
     <div style={{ marginBottom: '20px' }}>
-      <div className="flex items-center justify-between mb-4">
-        <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b', fontFamily: "'DM Sans', system-ui, sans-serif" }}>Overview</h2>
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <h2 className="text-sm sm:text-[15px] font-bold" style={{ color: '#1e293b', fontFamily: "'DM Sans', system-ui, sans-serif" }}>Overview</h2>
         <button
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-          style={{ background: 'white', border: '1px solid rgba(226,232,240,0.8)', color: '#64748b', fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: '12px' }}
+          className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-medium transition-colors"
+          style={{ background: 'white', border: '1px solid rgba(226,232,240,0.8)', color: '#64748b', fontFamily: "'DM Sans', system-ui, sans-serif" }}
         >
           Last 30 days
           <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/></svg>
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {stats.map((s) => (
           <div
             key={s.label}
-            className="bg-white rounded-2xl p-5 transition-all duration-200 hover:-translate-y-0.5"
+            className="bg-white rounded-2xl p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5"
             style={{ border: '1px solid rgba(226,232,240,0.7)', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 6px 20px rgba(0,0,0,0.07)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 8px rgba(0,0,0,0.04)'; }}
@@ -82,8 +82,8 @@ export default function StatsGrid({ total }: StatsProps) {
                 {s.label}
               </span>
             </div>
-            <p style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a', fontFamily: "'DM Sans', system-ui, sans-serif", letterSpacing: '-0.03em', lineHeight: 1, marginBottom: '6px' }}>
-              {s.value} <span style={{ fontSize: '14px', color: s.trendColor, fontWeight: 700 }}>↑ {s.trend}</span>
+            <p className="text-2xl sm:text-[28px]" style={{ fontWeight: 700, color: '#0f172a', fontFamily: "'DM Sans', system-ui, sans-serif", letterSpacing: '-0.03em', lineHeight: 1, marginBottom: '6px' }}>
+              {s.value} <span className="text-xs sm:text-sm" style={{ color: s.trendColor, fontWeight: 700 }}>↑ {s.trend}</span>
             </p>
             <p style={{ fontSize: '12px', color: '#94a3b8', fontFamily: "'DM Sans', system-ui, sans-serif" }}>{s.sub}</p>
           </div>

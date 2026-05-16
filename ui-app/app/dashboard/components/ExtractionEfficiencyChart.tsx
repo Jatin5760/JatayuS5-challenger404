@@ -49,19 +49,19 @@ export default function ExtractionEfficiencyChart({ documents = [] }: Extraction
   const areaPath = `M0,100 ${points} L200,100 Z`;
 
   return (
-    <div className="flex flex-col gap-5 w-full lg:w-[60%]">
+    <div className="flex flex-col gap-4 sm:gap-5 w-full">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-text-secondary font-inter">
+        <h2 className="text-lg sm:text-xl font-semibold text-text-secondary font-inter">
           Extraction Efficiency
         </h2>
-        <div className="bg-slate-50 text-slate-400 text-[10px] font-bold px-3 py-1 rounded-full border border-slate-100">
+        <div className="bg-slate-50 text-slate-400 text-[9px] sm:text-[10px] font-bold px-2 sm:px-3 py-1 rounded-full border border-slate-100">
           {documents.length} TOTAL
         </div>
       </div>
 
-      <div className="flex flex-col w-full bg-white rounded-xl p-6 shadow-card h-[280px]">
+      <div className="flex flex-col w-full bg-white rounded-xl p-4 sm:p-6 shadow-card min-h-[220px] sm:h-[280px]">
         <div className="flex-1 w-full relative pt-2">
-          <div className="h-[160px] w-full">
+          <div className="h-[120px] sm:h-[160px] w-full">
             <svg viewBox="0 0 200 100" className="w-full h-full preserve-3d overflow-visible">
               {/* Simple Horizontal Grid */}
               {[0, 50, 100].map((y) => (

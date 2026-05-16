@@ -14,6 +14,9 @@ interface Message {
 
 interface ChatCopilotProps {
   onNavigate?: (page: string) => void;
+  docType?: string | null;
+  schema?: unknown;
+  currentData?: Record<string, unknown> | null;
 }
 
 interface ChatSession {
@@ -63,7 +66,7 @@ const initialMessages: Message[] = [
   { role: 'assistant', content: 'Hi! I am your TradeDoc Copilot. How can I help you with your trades today?' },
 ];
 
-export default function ChatCopilot({ onNavigate }: ChatCopilotProps) {
+export default function ChatCopilot({ onNavigate, docType, schema, currentData }: ChatCopilotProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
@@ -258,13 +261,21 @@ export default function ChatCopilot({ onNavigate }: ChatCopilotProps) {
       : userMsg;
 
     try {
+      const payload = {
+        message: payloadMsg,
+        session_id: sessionId || undefined,
+        doc_type: docType || undefined,
+        schema: schema || undefined,
+        current_data: currentData || undefined,
+      };
+
       const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           ...authHeaders()
         },
-        body: JSON.stringify({ message: payloadMsg, session_id: sessionId || undefined })
+        body: JSON.stringify(payload)
       });
 
       if (response.status === 401) {
@@ -284,12 +295,9 @@ export default function ChatCopilot({ onNavigate }: ChatCopilotProps) {
         setSessionId(data.session.id);
       }
 
-      console.log('Chat API Response:', { reply, action });
-
       setMessages(prev => [...prev, { role: 'assistant', content: reply, action }]);
       
       if (action && onNavigate) {
-        console.log('Triggering Navigation to:', action);
         onNavigate(action);
       }
 
@@ -307,18 +315,18 @@ export default function ChatCopilot({ onNavigate }: ChatCopilotProps) {
   return (
     <>
       {/* Floating Draggable Wrapper */}
-      <motion.div 
+      <motion.div
         drag
         dragMomentum={false}
-        className="fixed bottom-8 right-8 z-[100]"
+        className="relative z-[100]"
       >
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="relative w-16 h-16 rounded-2xl drop-shadow-2xl flex items-center justify-center transition-transform hover:scale-110 active:scale-95 bg-transparent"
+          className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl drop-shadow-2xl flex items-center justify-center transition-transform hover:scale-110 active:scale-95 bg-transparent"
         >
           {/* Always Visible Cloud/Speech Bubble when closed */}
           {!isOpen && (
-            <div className="absolute -top-10 right-0 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-full whitespace-nowrap shadow-lg">
+            <div className="absolute -top-9 sm:-top-10 right-0 bg-indigo-600 text-white text-[9px] sm:text-[10px] font-bold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full whitespace-nowrap shadow-lg">
               Ask AI ✦
               <div className="absolute -bottom-1 right-4 w-2 h-2 bg-indigo-600 rotate-45" />
             </div>
@@ -343,18 +351,18 @@ export default function ChatCopilot({ onNavigate }: ChatCopilotProps) {
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: -20, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="absolute bottom-full right-0 mb-4 w-[400px] h-[600px] bg-white rounded-[32px] shadow-[0_30px_80px_rgba(0,0,0,0.2)] flex flex-col overflow-hidden border border-gray-100"
+              className="absolute bottom-full right-0 mb-4 w-[92vw] sm:w-[400px] h-[75vh] sm:h-[600px] max-w-[500px] bg-white rounded-[24px] sm:rounded-[32px] shadow-[0_30px_80px_rgba(0,0,0,0.2)] flex flex-col overflow-hidden border border-gray-100"
             >
               {/* Header */}
-              <div className="p-6 bg-gray-50/50 border-b border-gray-100 flex items-center gap-3">
+              <div className="p-4 sm:p-6 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2 sm:gap-3">
                 <div className="w-10 h-10 flex items-center justify-center">
                   <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain" />
                 </div>
                 <div>
-                  <h3 className="font-black text-[#1a1d2e] tracking-tight">TradeDoc Copilot</h3>
+                  <h3 className="font-black text-sm sm:text-base text-[#1a1d2e] tracking-tight">TradeDoc Copilot</h3>
                   <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">AI Intelligent Assistant</span>
+                    <span className="text-[9px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest">AI Intelligent Assistant</span>
                   </div>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
@@ -388,13 +396,13 @@ export default function ChatCopilot({ onNavigate }: ChatCopilotProps) {
             {/* Messages Area */}
             <div 
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar bg-white/50 backdrop-blur-sm"
+              className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 sm:space-y-4 no-scrollbar bg-white/50 backdrop-blur-sm"
               style={{ backgroundImage: 'radial-gradient(#e2e8f0 0.5px, transparent 0.5px)', backgroundSize: '16px 16px' }}
             >
               {messages.map((msg, i) => (
                 <div key={msg.id || `${msg.role}-${i}`} className={`flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                   <div 
-                    className={`max-w-[85%] p-4 rounded-[22px] text-sm font-medium leading-relaxed ${
+                    className={`max-w-[90%] sm:max-w-[85%] p-3 sm:p-4 rounded-[18px] sm:rounded-[22px] text-[13px] sm:text-sm font-medium leading-relaxed ${
                       msg.role === 'user' 
                         ? 'bg-indigo-600 text-white rounded-tr-none shadow-lg shadow-indigo-500/10' 
                         : 'bg-white border border-gray-100 text-gray-700 rounded-tl-none shadow-sm'
@@ -424,7 +432,7 @@ export default function ChatCopilot({ onNavigate }: ChatCopilotProps) {
             </div>
 
             {/* Input Area */}
-            <div className="p-6 bg-white border-t border-gray-100 relative">
+            <div className="p-4 sm:p-6 bg-white border-t border-gray-100 relative">
               {/* Voice Waveform Animation */}
               {isListening && (
                 <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1 h-6 px-4 bg-indigo-50 rounded-full border border-indigo-100 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -449,7 +457,7 @@ export default function ChatCopilot({ onNavigate }: ChatCopilotProps) {
                     <button
                       key={i}
                       onClick={() => handleSend(chip.query)}
-                      className="whitespace-nowrap px-4 py-2 bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 rounded-full text-[11px] font-bold text-gray-600 hover:text-indigo-600 transition-all active:scale-95"
+                      className="whitespace-nowrap px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 rounded-full text-[10px] sm:text-[11px] font-bold text-gray-600 hover:text-indigo-600 transition-all active:scale-95"
                     >
                       {chip.label}
                     </button>
@@ -464,7 +472,7 @@ export default function ChatCopilot({ onNavigate }: ChatCopilotProps) {
                   onChange={(e) => { setInput(e.target.value); setIsVoiceMessage(false); }}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                   placeholder="Ask anything about your trades..."
-                  className="w-full pl-5 pr-24 py-4 bg-gray-50 border border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl outline-none transition-all text-sm font-medium text-gray-700 shadow-inner"
+                  className="w-full pl-4 sm:pl-5 pr-20 sm:pr-24 py-3 sm:py-4 bg-gray-50 border border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl outline-none transition-all text-[13px] sm:text-sm font-medium text-gray-700 shadow-inner"
                 />
                 <button 
                   onClick={toggleListening}
@@ -481,7 +489,7 @@ export default function ChatCopilot({ onNavigate }: ChatCopilotProps) {
                   <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                 </button>
               </div>
-              <p className="mt-3 text-[10px] text-center text-gray-400 font-bold uppercase tracking-widest">Powered by Gemini 2.5 Flash</p>
+              <p className="mt-2 sm:mt-3 text-[9px] sm:text-[10px] text-center text-gray-400 font-bold uppercase tracking-widest">Powered by Gemini 2.5 Flash</p>
             </div>
           </motion.div>
         )}

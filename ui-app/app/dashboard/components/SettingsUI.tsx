@@ -156,8 +156,8 @@ export default function SettingsUI({ initialTab = 'edit-profile', onTabChange, o
       <div className="bg-white rounded-[24px] shadow-sm overflow-hidden min-h-[600px] flex flex-col">
         
         {/* Tabs Header */}
-        <div className="px-8 pt-6 border-b border-gray-100">
-          <div className="flex gap-10">
+        <div className="px-5 sm:px-8 pt-6 border-b border-gray-100">
+          <div className="flex gap-6 sm:gap-10 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -165,7 +165,7 @@ export default function SettingsUI({ initialTab = 'edit-profile', onTabChange, o
                   setActiveTab(tab.id);
                   if (onTabChange) onTabChange(tab.id);
                 }}
-                className={`pb-4 text-sm font-semibold transition-all relative ${
+                className={`pb-4 text-xs sm:text-sm font-semibold transition-all relative whitespace-nowrap ${
                   activeTab === tab.id ? 'text-primary' : 'text-text-tertiary hover:text-text-secondary'
                 }`}
               >
@@ -179,11 +179,11 @@ export default function SettingsUI({ initialTab = 'edit-profile', onTabChange, o
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 p-10 overflow-y-auto">
+        <div className="flex-1 p-5 sm:p-8 lg:p-10 overflow-y-auto">
           {/* 1. Edit Profile Tab */}
           {activeTab === 'edit-profile' && (
             <div className="flex flex-col gap-10">
-              <div className="flex items-center gap-6">
+              <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
                 <div className="w-24 h-24 rounded-full bg-bg-main flex items-center justify-center border-4 border-white shadow-sm overflow-hidden group relative cursor-pointer">
                   {/* Using smart masculine avatar Jasper (DiceBear v9) */}
                   <img src="https://api.dicebear.com/9.x/avataaars/svg?seed=Jasper" alt="Avatar" className="w-full h-full object-cover" />
@@ -192,8 +192,8 @@ export default function SettingsUI({ initialTab = 'edit-profile', onTabChange, o
                   </div>
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-text-secondary">{profile.name}</h2>
-                  <p className="text-sm text-text-tertiary">Trade Operations Specialist</p>
+                  <h2 className="text-lg sm:text-xl font-bold text-text-secondary">{profile.name}</h2>
+                  <p className="text-xs sm:text-sm text-text-tertiary">Trade Operations Specialist</p>
                 </div>
               </div>
 
@@ -260,7 +260,7 @@ export default function SettingsUI({ initialTab = 'edit-profile', onTabChange, o
                   <button
                     key={model.id}
                     onClick={() => handleSaveModel(model.id)}
-                    className={`flex items-center justify-between p-5 rounded-2xl border transition-all text-left ${
+                  className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-5 rounded-2xl border transition-all text-left ${
                       selectedModel === model.id 
                         ? 'border-primary bg-primary/5 ring-1 ring-primary' 
                         : 'border-border-secondary hover:border-primary/50 bg-white'
@@ -322,14 +322,14 @@ export default function SettingsUI({ initialTab = 'edit-profile', onTabChange, o
         </div>
 
         {/* Footer Actions */}
-        <div className="px-10 py-6 border-t border-gray-100 flex justify-end gap-4">
-          <button className="px-8 py-3 text-sm font-bold text-text-tertiary hover:bg-bg-main rounded-xl transition-colors">
+        <div className="px-5 sm:px-10 py-4 sm:py-6 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5 sm:gap-4">
+          <button className="px-6 sm:px-8 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-text-tertiary hover:bg-bg-main rounded-xl transition-colors">
             Cancel
           </button>
-          <button 
+          <button
             onClick={handleSaveProfile}
             disabled={isSaving || activeTab !== 'edit-profile'}
-            className="bg-primary text-white px-10 py-3 rounded-xl font-bold shadow-button hover:bg-[#0a06f4] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            className="bg-primary text-white px-8 sm:px-10 py-2.5 sm:py-3 rounded-xl font-bold shadow-button hover:bg-[#0a06f4] transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-xs sm:text-sm"
           >
             {isSaving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
             Save Changes

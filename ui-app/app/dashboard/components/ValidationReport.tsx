@@ -14,7 +14,7 @@ export default function ValidationReport({ report, isOpen, onClose }: Validation
 
   return (
     <div
-      className="fixed inset-y-0 right-0 w-full max-w-xl flex flex-col z-[60] animate-in slide-in-from-right duration-500 ease-out"
+      className="fixed inset-y-0 right-0 w-full max-w-[92vw] sm:max-w-xl flex flex-col z-[60] animate-in slide-in-from-right duration-500 ease-out"
       style={{
         background: '#ffffff',
         borderLeft: '1px solid rgba(226,232,240,0.7)',
@@ -23,7 +23,7 @@ export default function ValidationReport({ report, isOpen, onClose }: Validation
     >
       {/* Header */}
       <div
-        className="px-7 py-5 flex items-center justify-between"
+        className="px-5 sm:px-7 py-4 sm:py-5 flex items-center justify-between"
         style={{
           background: 'linear-gradient(135deg, rgba(99,102,241,0.05) 0%, rgba(248,249,252,1) 100%)',
           borderBottom: '1px solid rgba(226,232,240,0.6)',
@@ -39,7 +39,7 @@ export default function ValidationReport({ report, isOpen, onClose }: Validation
           <div>
             <h3
               style={{
-                fontSize: '17px',
+                fontSize: '15px',
                 fontWeight: 700,
                 color: '#0f172a',
                 fontFamily: "'DM Serif Display', Georgia, serif",
@@ -80,24 +80,24 @@ export default function ValidationReport({ report, isOpen, onClose }: Validation
 
       {/* Body */}
       <div
-        className="flex-1 overflow-y-auto p-7 prose prose-slate max-w-none prose-sm"
+        className="flex-1 overflow-y-auto p-5 sm:p-7 prose prose-slate max-w-none prose-sm"
         style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
       >
         <div
-          className="validation-content"
+          className="validation-content text-xs sm:text-[13px]"
           dangerouslySetInnerHTML={{ __html: renderMarkdown(report) }}
-          style={{ fontSize: '13px', lineHeight: 1.7, color: '#475569' }}
+          style={{ lineHeight: 1.7, color: '#475569' }}
         />
       </div>
 
       {/* Footer */}
       <div
-        className="p-6"
+        className="p-4 sm:p-6"
         style={{ borderTop: '1px solid rgba(226,232,240,0.6)', background: 'rgba(248,249,252,0.8)' }}
       >
         <button
           onClick={onClose}
-          className="w-full py-3.5 font-bold text-sm transition-all duration-200"
+          className="w-full py-3 sm:py-3.5 font-bold text-xs sm:text-sm transition-all duration-200"
           style={{
             background: '#1e293b',
             color: 'white',

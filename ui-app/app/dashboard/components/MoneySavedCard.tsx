@@ -18,12 +18,12 @@ export default function MoneySavedCard({ documents }: MoneySavedCardProps) {
   });
 
   return (
-    <div className="flex flex-col gap-5 w-full lg:w-[32%]">
-      <h2 className="text-xl font-semibold text-text-secondary font-inter">
+    <div className="flex flex-col gap-4 sm:gap-5 w-full">
+      <h2 className="text-lg sm:text-xl font-semibold text-text-secondary font-inter">
         Financial ROI
       </h2>
 
-      <div className="flex flex-col justify-between items-start w-full h-[280px] rounded-[32px] p-8 shadow-lg bg-white border border-[#deeaf2] text-text-secondary transition-all hover:scale-[1.02]">
+      <div className="flex flex-col justify-between items-start w-full min-h-[240px] sm:h-[280px] rounded-[24px] sm:rounded-[32px] p-5 sm:p-8 shadow-lg bg-white border border-[#deeaf2] text-text-secondary transition-all hover:scale-[1.02]">
         <div className="flex flex-col w-full h-full justify-between">
           <div className="flex flex-row justify-between items-start w-full">
             <div className="flex flex-col">
@@ -40,7 +40,7 @@ export default function MoneySavedCard({ documents }: MoneySavedCardProps) {
           <div className="flex flex-col gap-1 mt-2">
             <div className="flex items-baseline gap-1">
               <span className="text-sm font-bold text-slate-400">₹</span>
-              <span className="text-5xl font-black italic tracking-tight text-slate-800">
+              <span className="text-3xl sm:text-4xl md:text-5xl font-black italic tracking-tight text-slate-800">
                 {moneySaved}
               </span>
             </div>

@@ -51,12 +51,12 @@ export default function RecentActivitySection({ documents, onLoad }: RecentActiv
   const displayDocs = documents.slice(0, 3);
 
   return (
-    <div className="flex flex-col gap-5 w-full lg:w-[40%]">
-      <h2 className="text-xl font-semibold text-text-secondary font-inter">
+    <div className="flex flex-col gap-4 sm:gap-5 w-full">
+      <h2 className="text-lg sm:text-xl font-semibold text-text-secondary font-inter">
         Recent Activity
       </h2>
 
-      <div className="flex flex-col w-full bg-white rounded-xl p-6 shadow-card h-[276px]">
+      <div className="flex flex-col w-full bg-white rounded-xl p-4 sm:p-6 shadow-card min-h-[200px] sm:h-[276px]">
         <div className="flex flex-col gap-4 w-full">
           {displayDocs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -76,14 +76,14 @@ export default function RecentActivitySection({ documents, onLoad }: RecentActiv
 
                   <div className="flex flex-row justify-between items-center w-full ml-4">
                     <div className="flex flex-col justify-start items-start">
-                      <p className="text-sm font-medium text-text-primary font-inter line-clamp-1">
+                      <p className="text-xs sm:text-sm font-medium text-text-primary font-inter line-clamp-1">
                         {doc.summary || doc.name}
                       </p>
-                      <p className="text-xs text-text-tertiary font-inter">
+                      <p className="text-[10px] sm:text-xs text-text-tertiary font-inter">
                         {new Date(doc.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </p>
                     </div>
-                    <p className="text-sm font-medium text-right font-inter text-accent-success">
+                    <p className="text-xs sm:text-sm font-medium text-right font-inter text-accent-success">
                       {docTypeName(doc.doc_type).split(' ')[0]}
                     </p>
                   </div>

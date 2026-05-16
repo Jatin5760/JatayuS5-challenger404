@@ -43,12 +43,12 @@ export default function ActivityChart({ documents = [] }: ActivityChartProps) {
   const maxCount = Math.max(...chartData.map(d => Math.max(d.manual, d.ai)), 2);
 
   return (
-    <div className="flex flex-col gap-5 w-full lg:w-[68%]">
-      <h2 className="text-xl font-semibold text-text-secondary font-inter">
+    <div className="flex flex-col gap-4 sm:gap-5 w-full">
+      <h2 className="text-lg sm:text-xl font-semibold text-text-secondary font-inter">
         Processing Activity
       </h2>
 
-      <div className="flex flex-col w-full bg-white rounded-xl p-6 shadow-card h-[276px]">
+      <div className="flex flex-col w-full bg-white rounded-xl p-4 sm:p-6 shadow-card min-h-[220px] sm:h-[276px]">
         <div className="flex justify-end gap-6 mb-4">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-[#1814f3]" />
@@ -63,21 +63,21 @@ export default function ActivityChart({ documents = [] }: ActivityChartProps) {
         <div className="flex-1 flex items-end justify-between px-2">
           {chartData.map((item, i) => (
             <div key={`${item.day}-${i}`} className="flex flex-col items-center gap-3 w-full">
-              <div className="flex gap-2 items-end h-[140px]">
+              <div className="flex gap-1.5 sm:gap-2 items-end h-[100px] sm:h-[140px]">
                 <motion.div
                   initial={{ height: 0 }}
                   animate={{ height: `${(item.manual / maxCount) * 100}%` }}
                   transition={{ duration: 0.8, delay: i * 0.1 }}
-                  className="w-3 sm:w-4 bg-[#1814f3] rounded-full"
+                  className="w-2.5 sm:w-3 md:w-4 bg-[#1814f3] rounded-full"
                 />
                 <motion.div
                   initial={{ height: 0 }}
                   animate={{ height: `${(item.ai / maxCount) * 100}%` }}
                   transition={{ duration: 0.8, delay: i * 0.1 + 0.2 }}
-                  className="w-3 sm:w-4 bg-[#16dbcc] rounded-full"
+                  className="w-2.5 sm:w-3 md:w-4 bg-[#16dbcc] rounded-full"
                 />
               </div>
-              <span className="text-xs text-text-tertiary font-inter">{item.day}</span>
+              <span className="text-[10px] sm:text-xs text-text-tertiary font-inter">{item.day}</span>
             </div>
           ))}
         </div>

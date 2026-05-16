@@ -1,29 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, DM_Serif_Display, DM_Sans } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const dmSerifDisplay = DM_Serif_Display({
-  weight: ['400'],
-  style: ['normal', 'italic'],
-  variable: "--font-dm-serif-display",
-  subsets: ["latin"],
-});
-
-const dmSans = DM_Sans({
-  weight: ['300', '400', '500', '600', '700'],
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "TradeDocAI - Intelligent Trade Document Extraction",
@@ -49,7 +25,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${dmSerifDisplay.variable} ${dmSans.variable} h-full antialiased bg-background`}
+      className="h-full antialiased bg-background"
       data-scroll-behavior="smooth"
     >
       <body className="min-h-screen flex flex-col bg-background text-foreground">{children}</body>
