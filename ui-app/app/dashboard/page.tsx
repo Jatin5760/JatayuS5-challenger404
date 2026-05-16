@@ -17,7 +17,7 @@ import { SelectionStep, SectionStep, FieldsStep } from './components/WizardCompo
 import ChatCopilot from './components/ChatCopilot';
 
 // Replicated Components
-import { StatusOverviewCard, TimeSavedCard } from './components/DocumentOverviewCards';
+import DocumentOverviewCards, { TimeSavedCard } from './components/DocumentOverviewCards';
 import MoneySavedCard from './components/MoneySavedCard';
 import RecentActivitySection from './components/RecentActivitySection';
 import ActivityChart from './components/ActivityChart';
@@ -45,19 +45,30 @@ const API = API_BASE;
 const validPages: AppPage[] = ['landing', 'analytics', 'ai', 'form', 'pdf', 'settings', 'my-documents'];
 
 function getInitialPage(): AppPage {
+  return 'landing';
+}
+
+function getInitialSettingsTab(): SettingsTab {
+  return 'edit-profile';
+}
+
+function getStoredUserName(): string {
+  return 'User';
+}
+
+function readPageFromURL(): AppPage {
   if (typeof window === 'undefined') return 'landing';
   const urlPage = new URLSearchParams(window.location.search).get('page') as AppPage | null;
   return urlPage && validPages.includes(urlPage) ? urlPage : 'landing';
 }
 
-function getInitialSettingsTab(): SettingsTab {
+function readSettingsTabFromURL(): SettingsTab {
   if (typeof window === 'undefined') return 'edit-profile';
   const urlSub = new URLSearchParams(window.location.search).get('sub') as SettingsTab | null;
   return urlSub && ['edit-profile', 'preferences', 'security'].includes(urlSub) ? urlSub : 'edit-profile';
 }
 
-function getStoredUserName(): string {
-  if (typeof window === 'undefined') return 'User';
+function readStoredUserName(): string {
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}') as { name?: string; email?: string };
     return user.name || user.email || 'User';
@@ -116,7 +127,10 @@ export default function DashboardPage() {
       router.push('/login');
       return;
     }
-    const timer = window.setTimeout(() => setUserName(getStoredUserName()), 0);
+    // Read page/settings from URL on client-side only (avoids hydration mismatch)
+    setPage(readPageFromURL());
+    setSettingsSub(readSettingsTabFromURL());
+    const timer = window.setTimeout(() => setUserName(readStoredUserName()), 0);
     return () => window.clearTimeout(timer);
   }, [router]);
 
@@ -941,10 +955,14 @@ export default function DashboardPage() {
 
           {page === 'analytics' && (
             <div className="w-full max-w-[1440px] mx-auto grid grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-6 lg:gap-8 animate-fade-in px-1 sm:px-0">
-              <div className="col-span-2">
-                <StatusOverviewCard documents={recentDocs} />
+              {/* Blue card: full width on mobile, 1 col on desktop (with teal stacked below) */}
+              <div className="col-span-2 lg:col-span-1">
+                <DocumentOverviewCards documents={recentDocs} onLoad={openDocInForm} hideTimeSavedMobile />
               </div>
-              <TimeSavedCard documents={recentDocs} />
+              {/* Teal Time Saved: only on mobile, sits next to MoneySavedCard */}
+              <div className="lg:hidden">
+                <TimeSavedCard documents={recentDocs} />
+              </div>
               <MoneySavedCard documents={recentDocs} />
               <ActivityChart documents={recentDocs} />
               <DocumentTypeBreakdown documents={recentDocs} />

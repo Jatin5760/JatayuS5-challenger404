@@ -16,10 +16,32 @@ sys.path.insert(0, os.path.join(_ROOT, "templates", "IRS_Confirmation"))
 sys.path.insert(0, os.path.join(_ROOT, "templates", "CDS_Confirmation"))
 sys.path.insert(0, os.path.join(_ROOT, "templates", "Equity_TRS"))
 
-from generate_fx_ndf import generate_pdf as generate_fx_pdf
-from generate_irs import generate_pdf as generate_irs_pdf
-from generate_cds import generate_pdf as generate_cds_pdf
-from generate_equity_trs import generate_pdf as generate_equity_trs_pdf
+# Lazy imports with fallbacks — prevents entire server from crashing
+# if a single template module is missing from the deployment image.
+_generate_fx_pdf = None
+_generate_irs_pdf = None
+_generate_cds_pdf = None
+_generate_equity_trs_pdf = None
+
+try:
+    from generate_fx_ndf import generate_pdf as _generate_fx_pdf
+except ModuleNotFoundError:
+    print("  ⚠️  generate_fx_ndf module not found — FX NDF PDF generation disabled")
+
+try:
+    from generate_irs import generate_pdf as _generate_irs_pdf
+except ModuleNotFoundError:
+    print("  ⚠️  generate_irs module not found — IRS PDF generation disabled")
+
+try:
+    from generate_cds import generate_pdf as _generate_cds_pdf
+except ModuleNotFoundError:
+    print("  ⚠️  generate_cds module not found — CDS PDF generation disabled")
+
+try:
+    from generate_equity_trs import generate_pdf as _generate_equity_trs_pdf
+except ModuleNotFoundError:
+    print("  ⚠️  generate_equity_trs module not found — Equity TRS PDF generation disabled")
 
 OUTPUT_DIR = os.path.join(_ROOT, "output_confirmations", "temp")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -40,13 +62,21 @@ def compile_pdf(state: DocForgeState) -> DocForgeState:
         print(f"  ⏳ Compiling {doc_type.upper()} PDF...")
 
         if doc_type == "fx_ndf":
-            pdf_path = generate_fx_pdf(trade_json, OUTPUT_DIR)
+            if _generate_fx_pdf is None:
+                return {**state, "error": "FX NDF PDF generator not available — module missing from deployment"}
+            pdf_path = _generate_fx_pdf(trade_json, OUTPUT_DIR)
         elif doc_type == "cds":
-            pdf_path = generate_cds_pdf(trade_json, OUTPUT_DIR)
+            if _generate_cds_pdf is None:
+                return {**state, "error": "CDS PDF generator not available — module missing from deployment"}
+            pdf_path = _generate_cds_pdf(trade_json, OUTPUT_DIR)
         elif doc_type == "equity_trs":
-            pdf_path = generate_equity_trs_pdf(trade_json, OUTPUT_DIR)
+            if _generate_equity_trs_pdf is None:
+                return {**state, "error": "Equity TRS PDF generator not available — module missing from deployment"}
+            pdf_path = _generate_equity_trs_pdf(trade_json, OUTPUT_DIR)
         else:
-            pdf_path = generate_irs_pdf(trade_json, OUTPUT_DIR)
+            if _generate_irs_pdf is None:
+                return {**state, "error": "IRS PDF generator not available — module missing from deployment"}
+            pdf_path = _generate_irs_pdf(trade_json, OUTPUT_DIR)
 
         if pdf_path and os.path.exists(pdf_path):
             filename = os.path.basename(pdf_path)

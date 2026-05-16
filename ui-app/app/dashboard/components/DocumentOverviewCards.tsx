@@ -6,6 +6,7 @@ import { RecentDoc } from '../types';
 interface DocumentOverviewCardsProps {
   documents: RecentDoc[];
   onLoad: (doc: RecentDoc) => void;
+  hideTimeSavedMobile?: boolean;
 }
 
 // Shared calculations hook
@@ -18,7 +19,7 @@ function useDocStats(documents: RecentDoc[]) {
   return { totalDocs, completedDocs, inProgressDocs, totalHoursSaved };
 }
 
-// Blue Status Overview Card — spans full mobile width
+// Blue Status Overview Card
 export function StatusOverviewCard({ documents }: { documents: RecentDoc[] }) {
   const { totalDocs, completedDocs, inProgressDocs } = useDocStats(documents);
 
@@ -42,7 +43,6 @@ export function StatusOverviewCard({ documents }: { documents: RecentDoc[] }) {
           </div>
 
           <div className="flex flex-row items-center justify-between mt-2 flex-1 w-full gap-2">
-            {/* Left Side: Primary Hero Metric */}
             <div className="flex flex-col pl-2 min-w-[120px]">
               <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-white/50 mb-1 whitespace-nowrap">
                 Total Documentation
@@ -58,12 +58,9 @@ export function StatusOverviewCard({ documents }: { documents: RecentDoc[] }) {
               </div>
             </div>
 
-            {/* Vertical Divider Line */}
             <div className="h-20 w-px bg-linear-to-b from-transparent via-white/10 to-transparent mx-1" />
 
-            {/* Right Side: Status Badges */}
             <div className="flex flex-col gap-3 pr-2 flex-1 max-w-[160px]">
-              {/* Verified Badge */}
               <div className="flex flex-col items-start bg-white/5 backdrop-blur-md rounded-2xl p-2.5 border border-white/10 w-full transition-all hover:bg-white/10">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
@@ -79,7 +76,6 @@ export function StatusOverviewCard({ documents }: { documents: RecentDoc[] }) {
                 </div>
               </div>
 
-              {/* In Progress Badge */}
               <div className="flex flex-col items-start bg-white/5 backdrop-blur-md rounded-2xl p-2.5 border border-white/10 w-full transition-all hover:bg-white/10">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.8)]" />
@@ -102,7 +98,7 @@ export function StatusOverviewCard({ documents }: { documents: RecentDoc[] }) {
   );
 }
 
-// Teal Time Saved Card — sits next to MoneySavedCard on mobile
+// Teal Time Saved Card
 export function TimeSavedCard({ documents }: { documents: RecentDoc[] }) {
   const { totalHoursSaved } = useDocStats(documents);
 
@@ -148,12 +144,15 @@ export function TimeSavedCard({ documents }: { documents: RecentDoc[] }) {
   );
 }
 
-// Backward-compatible wrapper that renders both cards stacked (used on landing page)
-export default function DocumentOverviewCards({ documents, onLoad }: DocumentOverviewCardsProps) {
+// Wrapper: blue + teal side-by-side on desktop, stacked on mobile
+// When hideTimeSavedMobile is true, the teal card is hidden on mobile (shown only on lg+)
+export default function DocumentOverviewCards({ documents, onLoad, hideTimeSavedMobile = false }: DocumentOverviewCardsProps) {
   return (
     <div className="flex flex-col gap-5 w-full">
       <StatusOverviewCard documents={documents} />
-      <TimeSavedCard documents={documents} />
+      <div className={hideTimeSavedMobile ? 'hidden lg:block' : ''}>
+        <TimeSavedCard documents={documents} />
+      </div>
     </div>
   );
 }
