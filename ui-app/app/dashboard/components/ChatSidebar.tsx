@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import ReactMarkdown, { Components } from 'react-markdown';
 import { API_BASE, authHeaders } from '@/lib/api';
 import { Schema, SchemaField } from '../types';
 
@@ -214,23 +215,32 @@ export default function ChatSidebar({
   const prevDataRef = useRef<Record<string, unknown>>({});
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
-  // ── Markdown stripper ────────────────────────────
-  const stripMarkdown = useCallback((text: string, trim = true): string => {
-    let cleaned = text
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\*(.*?)\*/g, '$1')
-      .replace(/__(.*?)__/g, '$1')
-      .replace(/_(.*?)_/g, '$1')
-      .replace(/`(.*?)`/g, '$1')
-      .replace(/^#{1,6}\s+/gm, '')
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      .replace(/^[-*+]\s+/gm, '• ')
-      .replace(/^\d+\.\s+/gm, '')
-      .replace(/^>\s+/gm, '')
-      .replace(/~~(.*?)~~/g, '$1')
-      .replace(/\n{3,}/g, '\n\n');
-    return trim ? cleaned.trim() : cleaned;
-  }, []);
+  // ── Custom Markdown Components ──────────────────
+  const markdownComponents: Partial<Components> = {
+    strong({ children }) {
+      return <strong className="text-indigo-600 font-semibold">{children}</strong>;
+    },
+    p({ children }) {
+      return <p className="mb-1 last:mb-0">{children}</p>;
+    },
+    ul({ children }) {
+      return <ul className="list-none space-y-0.5 mb-1 pl-0">{children}</ul>;
+    },
+    li({ children }) {
+      return (
+        <li className="flex gap-2 text-[13px] leading-relaxed">
+          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+          <span>{children}</span>
+        </li>
+      );
+    },
+    h3({ children }) {
+      return <h3 className="text-[14px] font-bold text-slate-800 mb-1 mt-1">{children}</h3>;
+    },
+    h4({ children }) {
+      return <h4 className="text-[13px] font-semibold text-slate-700 mb-0.5 mt-0.5">{children}</h4>;
+    },
+  };
 
   // ── Auto-scroll to bottom ────────────────────────
   useEffect(() => {
@@ -356,10 +366,10 @@ export default function ChatSidebar({
           if (payload.token) {
             setIsLoading(false);
             fullText += payload.token;
-            setStreamingText(stripMarkdown(fullText, false));
+            setStreamingText(fullText);
           }
           if (payload.done) {
-            const finalText = stripMarkdown(payload.reply || fullText, true);
+            const finalText = payload.reply || fullText;
             setIsLoading(false);
             setIsStreaming(false);
             setStreamingText('');
@@ -408,7 +418,7 @@ export default function ChatSidebar({
         }
 
         if (!doneReceived && fullText.trim()) {
-          const finalText = stripMarkdown(fullText, true);
+          const finalText = fullText;
           setIsLoading(false);
           setIsStreaming(false);
           setStreamingText('');
@@ -428,7 +438,7 @@ export default function ChatSidebar({
         ]);
       }
     },
-    [isLoading, isStreaming, docType, schema, currentData, stripMarkdown, activeFieldKey, activeFieldLabel],
+    [isLoading, isStreaming, docType, schema, currentData, activeFieldKey, activeFieldLabel],
   );
 
   // ── Stop mic helper ────────────────────────────
@@ -719,7 +729,7 @@ export default function ChatSidebar({
                     : 'bg-white border border-slate-200 text-slate-700 rounded-bl-md'
               }`}
             >
-              {msg.content}
+              <ReactMarkdown components={markdownComponents}>{msg.content}</ReactMarkdown>
             </div>
           </div>
         ))}
@@ -728,7 +738,7 @@ export default function ChatSidebar({
         {isStreaming && (
           <div className="flex justify-start">
             <div className="max-w-[90%] px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-white border border-slate-200 text-[13px] text-slate-700 leading-relaxed">
-              {streamingText || '\u00A0'}
+              <ReactMarkdown components={markdownComponents}>{streamingText || '\u00A0'}</ReactMarkdown>
               <span className="inline-block w-1.5 h-4 ml-0.5 bg-indigo-500 animate-pulse align-text-bottom rounded-sm" />
             </div>
           </div>

@@ -145,13 +145,14 @@ CONVERSATION HISTORY:
 User: {message}
 
 INSTRUCTIONS:
+- You are a seasoned trade confirmation expert. Be confident and professional — never hedge with "I think" or "maybe."
 - Be CRISP and SHORT. 1-3 sentences max. No greetings, no fluff, no markdown. Get straight to the point.
-- If asked about a field, explain it in one sentence with one example value. Do NOT say "I'm not aware" — always find and explain the closest matching field.
+- If asked about a field, explain its meaning, give one realistic example value, and briefly state its legal/financial purpose.
 - For select/dropdown fields, simply state the available options and recommend the most common one.
-- If the user asks why a field is needed, explain its purpose in one sentence.
+- If the user asks why a field is needed, explain its legal/financial purpose in one sentence.
 - You can navigate the user. Append [NAVIGATE:page-name] at the end (e.g. [NAVIGATE:ai] or [NAVIGATE:dashboard]).
 - Do NOT fabricate data. If truly unsure, say "Check with your counterparty."
-- CRITICAL: Plain text ONLY — no bold (**), no italics (*), no backticks, no headings, no bullet lists, no numbered lists."""
+- Use clean markdown formatting (like **bold** for key terms, bullet lists for options, and ### headings for sections) to make explanations easy to read and beautiful for the user."""
 
     return prompt
 
@@ -183,8 +184,8 @@ def build_mistake_check_prompt(doc_type: str, current_data: dict, schema: dict) 
 Filled: {filled_str}
 Context: {chr(10).join(fields_info) if fields_info else 'none'}
 Check for nonsense text, bad dates, inconsistent names, type mismatches.
-Reply in 2-4 plain text sentences — no markdown, no bold, no bullet lists, no headings.
-If no issues, end with: "No obvious issues found — everything looks good." """
+Reply in 2-4 sentences. Use clean markdown (**bold** for key terms, bullet lists for issues).
+If no issues, end with: "**No obvious issues found** — everything looks good." """
 
 
 def build_missing_fields_prompt(doc_type: str, current_data: dict, schema: dict) -> str | None:
@@ -220,9 +221,8 @@ def build_missing_fields_prompt(doc_type: str, current_data: dict, schema: dict)
 
     return f"""{doc_display}: {missing_count}/{total_required} required fields missing.
 {missing_lines}
-Reply in 2-4 plain text sentences only — no markdown, no bullet lists, no bold, no headings.
-Group remaining fields by section inline, like: "In Party Information: Counterparty Name and Execution Date. In Trade Details: Notional Amount."
-If only 1-2 fields remain, make it encouraging: "Almost done! Just fill in..." Keep it crisp."""
+Reply in 2-4 sentences. Use clean markdown (**bold** for section names, bullet lists for fields).
+Group remaining fields by section. If only 1-2 fields remain, make it encouraging. Keep it crisp."""
 
 
 def build_field_explain_prompt(doc_type: str, field_key: str, field_label: str, resolved_field: dict | None) -> str:
@@ -241,8 +241,8 @@ def build_field_explain_prompt(doc_type: str, field_key: str, field_label: str, 
 
     if not resolved_field:
         return f"""Explain "{field_label}" in {doc_display}.
-Reply in 2-3 plain text sentences — no markdown, no bullet lists, no bold, no headings.
-Include meaning, a quick example, and a practical tip. Under 60 words."""
+Reply in 2-3 sentences. Use clean markdown (**bold** for key terms, bullet lists for options).
+Explain meaning, give a realistic example, and a practical tip. Under 60 words."""
 
     field_type = resolved_field.get("type", "text")
     field_required = resolved_field.get("required", False)
@@ -262,8 +262,10 @@ Include meaning, a quick example, and a practical tip. Under 60 words."""
             options_str = f"\nDropdown options: {', '.join(opt_labels)}"
 
     return f"""User clicked "{field_label}" ({field_type}) in {doc_display}. Required: {'Yes' if field_required else 'No'}.{options_str}
-Reply in 2-3 plain text sentences — no markdown, no bullet lists, no bold, no headings.
-Include: meaning, a short example, and a practical tip. If select, ALWAYS identify and recommend the best matching option from the list. Never say you're not aware — pick the closest one. Under 70 words."""
+Reply in 3-5 sentences. Use clean markdown (**bold** for key terms, bullet lists for options, ### for sections).
+Explain what this field means in the context of {doc_display}, give a realistic example value, and explain its legal/financial purpose.
+If it's a select/dropdown, ALWAYS list all available options and recommend the most common one with reasoning.
+If truly unsure, say "Check with your counterparty." Under 120 words."""
 
 
 def build_common_mistakes_prompt(doc_type: str) -> str:
@@ -278,8 +280,8 @@ def build_common_mistakes_prompt(doc_type: str) -> str:
     doc_display = doc_name_map.get(doc_type, doc_type.upper())
 
     return f"""List 3-4 common mistakes when filling {doc_display}.
-Reply in 3-4 plain text sentences — no markdown, no bullet lists, no bold, no headings.
-Each mistake as its own short sentence. Under 80 words."""
+Reply in 3-4 sentences. Use clean markdown (**bold** for key warnings, bullet lists for each mistake).
+Under 80 words."""
 
 
 def build_form_overview_prompt(doc_type: str) -> str:
@@ -293,8 +295,8 @@ def build_form_overview_prompt(doc_type: str) -> str:
     }
     doc_display = doc_name_map.get(doc_type, doc_type.upper())
 
-    return f"""Explain {doc_display}: what it is, where used, 1-2 examples.
-Reply in 2-4 plain text sentences — no markdown, no bullet lists, no bold, no headings. Under 70 words."""
+    return f"""Explain {doc_display}: what it is, where used, its legal/financial purpose, and 1-2 real-world examples.
+Reply in 3-5 sentences. Use clean markdown (**bold** for key concepts, bullet lists for examples). Under 100 words."""
 
 
 def build_casual_chat_prompt(doc_type: str, user_msg: str) -> str:
@@ -308,5 +310,5 @@ def build_casual_chat_prompt(doc_type: str, user_msg: str) -> str:
     doc_display = doc_name_map.get(doc_type, doc_type.upper()) if doc_type else "a trade confirmation"
 
     return f"""User: "{user_msg}" | Context: filling {doc_display}.
-Reply in 2-3 plain text sentences — no markdown, no bullet lists, no bold, no headings.
+Reply in 2-3 sentences. Use clean markdown (**bold** for emphasis where helpful).
 Be direct, warm, and helpful."""

@@ -327,7 +327,7 @@ def _build_chat_prompt(user_msg: str) -> str:
     prompt = f"You are TradeDoc Copilot, a helpful and intelligent AI assistant. Today's date is {current_time}. "
     prompt += "While you specialize in TradeDoc AI (derivatives like IRS, CDS, FX NDF, Equity TRS), you are happy to help with general questions too. "
     prompt += "Be conversational, friendly, and smart. Keep responses concise — 30-60 words, never exceed 90 words. "
-    prompt += "Reply in plain text sentences — no markdown, no bullet lists, no bold, no headings. "
+    prompt += "Use clean markdown formatting (**bold** for emphasis, bullet lists where helpful) to make replies beautiful. "
     prompt += "CRITICAL NAVIGATION RULES:\n"
     prompt += "1. If the user mentions 'manual', 'form', 'create', or 'entry', YOU MUST use the 'form-' tokens (e.g., [NAVIGATE:form-irs]).\n"
     prompt += "2. If the user mentions 'extract', 'upload', 'file', or 'AI extraction', use the 'ai' token (e.g., [NAVIGATE:ai]).\n"
@@ -1024,8 +1024,8 @@ def api_chat():
                     f"FILLED FIELDS: {json.dumps(filled, default=str)}\n"
                     f"REQUIRED FIELDS STILL EMPTY: {', '.join(required_labels[:20])}\n"
                     f"User asks: \"{user_msg}\"\n"
-                    f"Reply in 2-4 plain text sentences — no markdown, no bullet lists, no bold, no headings. "
-                    f"Group remaining fields by section inline, like: \"In Party Information: Counterparty Name and Execution Date. In Trade Details: Notional Amount.\" "
+                    f"Reply in 2-4 sentences. Use clean markdown (**bold** for section names, bullet lists for fields). "
+                    f"Group remaining fields by section. "
                     f"If only 1-2 fields remain, make it encouraging: \"Almost done! Just fill in...\" 70 words max. Do NOT mention filled fields."
                 )
                 if stream:
@@ -1046,8 +1046,8 @@ def api_chat():
                     f"User asks: \"{user_msg}\"\n"
                     f"Review ONLY the filled fields above. Point out: wrong dates, nonsense values, "
                     f"inconsistent entries, type mismatches. Be specific — mention field names. "
-                    f"Reply in 2-4 plain text sentences — no markdown, no bullet lists, no bold, no headings. "
-                    f"If no issues, end with: \"No obvious issues found — everything looks good.\" Max 150 words."
+                    f"Reply in 2-4 sentences. Use clean markdown (**bold** for field names, bullet lists for issues). "
+                    f"If no issues, end with: \"**No obvious issues found** — everything looks good.\" Max 150 words."
                 )
                 if stream:
                     return _groq_stream_response(prompt, max_tokens=280)
@@ -1067,7 +1067,7 @@ def api_chat():
                     f"FIELD: {field_label} (key: {active_field_key}) — type: {field_type}"
                     + (f", options: {json.dumps(options)[:200]}" if options else "")
                     + f"\nUser asks: \"{user_msg}\"\n"
-                    f"Reply in 2-3 plain text sentences — no markdown, no bullet lists, no bold, no headings. "
+                    f"Reply in 2-3 sentences. Use clean markdown (**bold** for key terms, bullet lists for options). "
                     f"Include: meaning, a short example, and a practical tip. "
                     f"If select field, ALWAYS identify and recommend the best matching option from the list. Never say you're not aware — pick the closest one. Under 70 words."
                 )
@@ -1082,8 +1082,8 @@ def api_chat():
                 prompt = (
                     f"DOCUMENT: {doc_display}\n"
                     f"User asks: \"{user_msg}\"\n"
-                    f"Reply in 3-4 plain text sentences — no markdown, no bullet lists, no bold, no headings. "
-                    f"Each mistake as its own short sentence. Be specific with examples. Under 80 words."
+                    f"Reply in 3-4 sentences. Use clean markdown (**bold** for warnings, bullet lists for each mistake). "
+                    f"Be specific with examples. Under 80 words."
                 )
                 if stream:
                     return _groq_stream_response(prompt, max_tokens=200)
@@ -1096,7 +1096,7 @@ def api_chat():
                 prompt = (
                     f"DOCUMENT: {doc_display}\n"
                     f"User asks: \"{user_msg}\"\n"
-                    f"Reply in 2-4 plain text sentences — no markdown, no bullet lists, no bold, no headings. "
+                    f"Reply in 2-4 sentences. Use clean markdown (**bold** for key concepts, bullet lists for examples). "
                     f"Explain what this document is, where it's used, and 1-2 examples. Under 70 words."
                 )
                 if stream:

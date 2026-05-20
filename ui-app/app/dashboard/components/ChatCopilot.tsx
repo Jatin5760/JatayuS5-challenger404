@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown, { Components } from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE, authHeaders } from '../../../lib/api';
 
@@ -69,17 +70,38 @@ export default function ChatCopilot({ onNavigate, docType, schema, currentData }
   const [isSpeaking, setIsSpeaking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // ── Custom Markdown Components ──────────────────
+  const markdownComponents: Partial<Components> = {
+    strong({ children }) {
+      return <strong className="text-indigo-600 font-semibold">{children}</strong>;
+    },
+    p({ children }) {
+      return <p className="mb-1 last:mb-0">{children}</p>;
+    },
+    ul({ children }) {
+      return <ul className="list-none space-y-0.5 mb-1 pl-0">{children}</ul>;
+    },
+    li({ children }) {
+      return (
+        <li className="flex gap-2 text-[13px] leading-relaxed">
+          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+          <span>{children}</span>
+        </li>
+      );
+    },
+    h3({ children }) {
+      return <h3 className="text-[14px] font-bold text-slate-800 mb-1 mt-1">{children}</h3>;
+    },
+    h4({ children }) {
+      return <h4 className="text-[13px] font-semibold text-slate-700 mb-0.5 mt-0.5">{children}</h4>;
+    },
+  };
+
   const actionChips = [
     { label: 'Supported Docs?', query: 'Which types of trade documents do you support?' },
     { label: 'How to Extract?', query: 'How do I extract fields from a trade email?' },
     { label: 'ISDA Compliance', query: 'Tell me about ISDA-compliant output.' }
   ];
-
-  const formatMessage = (text: string) => {
-    let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#4f46e5">$1</strong>');
-    formatted = formatted.replace(/^\* (.*)/gm, '<div style="display:flex; gap:8px; margin-bottom:4px;"><span style="margin-top:6px; width:6px; height:6px; border-radius:50%; background:#6366f1; flex-shrink:0;"></span><span>$1</span></div>');
-    return formatted.split('\n').join('<br />');
-  };
 
   const speak = (text: string) => {
     if (!voiceEnabled || typeof window === 'undefined' || !window.speechSynthesis) return;
@@ -337,14 +359,19 @@ export default function ChatCopilot({ onNavigate, docType, schema, currentData }
             >
               {messages.map((msg, i) => (
                 <div key={msg.id || `${msg.role}-${i}`} className={`flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div 
+                  <div
                     className={`max-w-[90%] sm:max-w-[85%] p-3 sm:p-4 rounded-[18px] sm:rounded-[22px] text-[13px] sm:text-sm font-medium leading-relaxed ${
-                      msg.role === 'user' 
-                        ? 'bg-indigo-600 text-white rounded-tr-none shadow-lg shadow-indigo-500/10' 
+                      msg.role === 'user'
+                        ? 'bg-indigo-600 text-white rounded-tr-none shadow-lg shadow-indigo-500/10'
                         : 'bg-white border border-gray-100 text-gray-700 rounded-tl-none shadow-sm'
                     }`}
-                    dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }}
-                  />
+                  >
+                    {msg.role === 'user' ? (
+                      msg.content
+                    ) : (
+                      <ReactMarkdown components={markdownComponents}>{msg.content}</ReactMarkdown>
+                    )}
+                  </div>
                   {msg.role === 'assistant' && i === messages.length - 1 && isSpeaking && (
                     <button 
                       onClick={stopSpeaking}
