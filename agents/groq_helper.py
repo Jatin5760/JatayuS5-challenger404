@@ -2,23 +2,43 @@
 Groq Helper — thin wrapper around the Groq SDK for local form assistant (ChatSidebar).
 
 Model: Llama 4 Scout 17B (meta-llama/llama-4-scout-17b-16e-instruct)
-Free tier: 30K TPM, 500K TPD — more than enough for hackathon demo scale.
+Free tier: 30K TPM, 500K TPD per key — 5 keys for high-volume round-robin.
 
-No retries, no fallback models, no cache — Groq LPU inference is fast & reliable.
+Round-robin key rotation across GROQ_API_KEY_1..5 to spread rate limits.
+Thread-safe via a simple lock + counter.
 """
 
 from groq import Groq
 import os
+import threading
 
-MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+
+# ── Round-robin key pool ────────────────────────────────────
+_MAX_KEYS = 5
+_keys: list[str] = []
+_lock = threading.Lock()
+_counter = 0
+
+for i in range(1, _MAX_KEYS + 1):
+    key = os.getenv(f"GROQ_API_KEY_{i}")
+    if key:
+        _keys.append(key)
+
+if not _keys:
+    raise RuntimeError(
+        "No GROQ_API_KEY_1..5 environment variables are set. "
+        "At least one key is required."
+    )
 
 
 def _get_client() -> Groq:
-    """Create a Groq client from the GROQ_API_KEY env var."""
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        raise RuntimeError("GROQ_API_KEY environment variable is not set")
-    return Groq(api_key=api_key)
+    """Create a Groq client using the next key in round-robin order."""
+    global _counter
+    with _lock:
+        key = _keys[_counter % len(_keys)]
+        _counter += 1
+    return Groq(api_key=key)
 
 
 def call_groq(
