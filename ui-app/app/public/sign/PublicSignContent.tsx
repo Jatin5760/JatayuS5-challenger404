@@ -48,7 +48,9 @@ export default function PublicSignContent() {
   const [toastVisible, setToastVisible] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5055';
+  const API_BASE =
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    (process.env.NODE_ENV === 'development' ? 'http://localhost:5055' : '');
 
   const showToastMsg = (msg: string) => {
     setToast(msg);
