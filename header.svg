@@ -1,0 +1,55 @@
+<svg viewBox="0 0 800 130" width="100%" height="130" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Shifting gradient definition -->
+    <linearGradient id="shimmer" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4f46e5">
+        <animate attributeName="stop-color" values="#4f46e5; #3b82f6; #ec4899; #8b5cf6; #10b981; #4f46e5" dur="6s" repeatCount="indefinite" />
+      </stop>
+      <stop offset="25%" stop-color="#3b82f6">
+        <animate attributeName="stop-color" values="#3b82f6; #ec4899; #8b5cf6; #10b981; #4f46e5; #3b82f6" dur="6s" repeatCount="indefinite" />
+      </stop>
+      <stop offset="50%" stop-color="#ec4899">
+        <animate attributeName="stop-color" values="#ec4899; #8b5cf6; #10b981; #4f46e5; #3b82f6; #ec4899" dur="6s" repeatCount="indefinite" />
+      </stop>
+      <stop offset="75%" stop-color="#8b5cf6">
+        <animate attributeName="stop-color" values="#8b5cf6; #10b981; #4f46e5; #3b82f6; #ec4899; #8b5cf6" dur="6s" repeatCount="indefinite" />
+      </stop>
+      <stop offset="100%" stop-color="#10b981">
+        <animate attributeName="stop-color" values="#10b981; #4f46e5; #3b82f6; #ec4899; #8b5cf6; #10b981" dur="6s" repeatCount="indefinite" />
+      </stop>
+    </linearGradient>
+  </defs>
+
+  <style>
+    @keyframes letterReveal {
+      0% { opacity: 0; transform: translateY(15px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .svg-text {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      font-size: 72px;
+      font-weight: 800;
+      letter-spacing: -2px;
+      fill: url(#shimmer);
+    }
+
+    .letter {
+      opacity: 0;
+      animation: letterReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+
+  <text x="50%" y="85" text-anchor="middle" class="svg-text">
+    <tspan class="letter" style="animation-delay: 0.1s;">T</tspan>
+    <tspan class="letter" style="animation-delay: 0.18s;">r</tspan>
+    <tspan class="letter" style="animation-delay: 0.26s;">a</tspan>
+    <tspan class="letter" style="animation-delay: 0.34s;">d</tspan>
+    <tspan class="letter" style="animation-delay: 0.42s;">e</tspan>
+    <tspan class="letter" style="animation-delay: 0.5s;">D</tspan>
+    <tspan class="letter" style="animation-delay: 0.58s;">o</tspan>
+    <tspan class="letter" style="animation-delay: 0.66s;">c</tspan>
+    <tspan class="letter" style="animation-delay: 0.74s;">A</tspan>
+    <tspan class="letter" style="animation-delay: 0.82s;">I</tspan>
+  </text>
+</svg>
