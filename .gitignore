@@ -74,3 +74,7 @@ scratch/
 test/
 pytest.ini
 External files not the part of project/
+
+# ── Internal docs / planning ─────────────────────────────────
+audit_reports/
+plans/
