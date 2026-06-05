@@ -112,6 +112,7 @@ export default function DashboardPage() {
   const [aiMode, setAiMode] = useState(false);
   const [aiEmailText, setAiEmailText] = useState('');
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [currentPdfDoc, setCurrentPdfDoc] = useState<RecentDoc | null>(null);
   const [recentDocs, setRecentDocs] = useState<RecentDoc[]>([]);
   const [validationReport, setValidationReport] = useState('');
   const [validationPanelOpen, setValidationPanelOpen] = useState(false);
@@ -148,8 +149,7 @@ export default function DashboardPage() {
     // Read page/settings from URL on client-side only (avoids hydration mismatch)
     setPage(readPageFromURL());
     setSettingsSub(readSettingsTabFromURL());
-    const timer = window.setTimeout(() => setUserName(readStoredUserName()), 0);
-    return () => window.clearTimeout(timer);
+    setUserName(readStoredUserName());
   }, [router]);
 
   // Keep ref in sync with page state (avoids stale closure in callbacks)
@@ -287,6 +287,7 @@ export default function DashboardPage() {
       setAiMode(false);
       setAiEmailText('');
       setEditingDocId(null);
+      setCurrentPdfDoc(null);
       setIsEditingDocVerified(false);
       setModal('none');
     } else {
@@ -465,6 +466,38 @@ export default function DashboardPage() {
       hideLoading(); showToast('❌ Server error');
     }
   }, [currentPdfFilename, currentPdfFileId, showToast]);
+
+  const handlePdfRegenerated = useCallback((
+    newBlobUrl: string,
+    newFilename: string,
+    newFileId: string,
+    updatedData: Record<string, any>
+  ) => {
+    if (currentPdfBlobUrl) URL.revokeObjectURL(currentPdfBlobUrl);
+    setCurrentPdfBlobUrl(newBlobUrl);
+    setCurrentPdfFilename(newFilename);
+    setCurrentPdfFileId(newFileId);
+    
+    // Update stepData and irsSelections so that the form view reflects edits too
+    const newStepData: Record<string, unknown> = {};
+    const newIrsSelections: Record<string, string> = {};
+    const docType = activeSchema?.id || '';
+    for (const [key, value] of Object.entries(updatedData)) {
+      if ((docType === 'irs' || docType === 'equity_trs') && (key === 'exhibit' || key === 'termination_type' || key === 'model_type')) {
+        newIrsSelections[key] = value as string;
+      } else if (Array.isArray(value)) {
+        newStepData['__rep_' + key] = value;
+      } else {
+        newStepData[key] = value;
+      }
+    }
+    setStepData(newStepData);
+    setIrsSelections(newIrsSelections);
+    setCurrentPdfDoc(prev => prev ? { ...prev, data: updatedData } : null);
+    
+    void fetchRecentDocs();
+  }, [currentPdfBlobUrl, activeSchema, fetchRecentDocs]);
+
 
   const requestValidation = useCallback(async () => {
     if (!aiEmailText) { showToast('⚠️ Validation requires an email source'); return; }
@@ -675,6 +708,7 @@ export default function DashboardPage() {
         setCurrentPdfFilename(filename);
         setCurrentPdfFileId('');
         setEditingDocId(doc._id);
+        setCurrentPdfDoc(doc);
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('activePdfDocId', doc._id);
         }
@@ -702,6 +736,7 @@ export default function DashboardPage() {
       setCurrentPdfBlobUrl(url);
       setCurrentPdfFilename(fname);
       setEditingDocId(doc._id);
+      setCurrentPdfDoc(doc);
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('activePdfDocId', doc._id);
       }
@@ -1591,6 +1626,7 @@ export default function DashboardPage() {
               initialIsSigned={recentDocs.find(d => d._id === editingDocId)?.signed || false}
               initialIsClientSigned={recentDocs.find(d => d._id === editingDocId)?.client_signed || false}
               initialIsReleased={recentDocs.find(d => d._id === editingDocId)?.released || false}
+              onPdfRegenerated={handlePdfRegenerated}
             />
           )}
         </div>
@@ -1864,9 +1900,9 @@ export default function DashboardPage() {
       {!isManualForm && page !== 'workflow-builder' && (
       <div className="fixed bottom-4 right-4 z-140 sm:bottom-6 sm:right-6 md:bottom-8 md:right-8">
         <ChatCopilot
-          docType={page === 'form' ? activeSchema?.id : null}
-          schema={page === 'form' ? activeSchema : null}
-          currentData={page === 'form' ? { ...irsSelections, ...stepData } : null}
+          docType={page === 'form' ? activeSchema?.id : (page === 'pdf' ? currentPdfDoc?.doc_type : null)}
+          schema={page === 'form' ? activeSchema : (page === 'pdf' && currentPdfDoc ? { id: currentPdfDoc.doc_type } : null)}
+          currentData={page === 'form' ? { ...irsSelections, ...stepData } : (page === 'pdf' ? currentPdfDoc?.data : null)}
           onNavigate={(dest) => {
           const targetRaw = dest.toLowerCase().trim();
 

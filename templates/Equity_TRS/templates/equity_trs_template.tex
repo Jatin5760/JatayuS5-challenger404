@@ -16,6 +16,8 @@
 % Prevent LaTeX from stretching vertical space to fill pages evenly
 \raggedbottom
 
+\emergencystretch 3em
+
 % --- TEMPLATE ENGINE COMPATIBILITY (Jinja2) ---
 \catcode`\<=12
 \catcode`\>=12
@@ -35,6 +37,9 @@
 
 \begin{center}
     \textbf{<< party_a_name >>}
+    <<- if party_a_address >>
+    \\ << party_a_address >>
+    <<- endif >>
 \end{center}
 \vspace{0.1cm}
 
@@ -43,9 +48,13 @@
 \end{flushright}
 
 \vspace{0.1cm}
-\noindent \textbf{<< party_b_name >>} \\
-\noindent << party_b_attn >> \\
-\noindent << party_b_address >>
+\noindent \textbf{<< party_b_name >>}
+<<- if party_b_attn >>
+\\ << party_b_attn >>
+<<- endif >>
+<<- if party_b_address >>
+\\ << party_b_address >>
+<<- endif >>
 
 \vspace{0.2cm}
 \noindent \textbf{Re: << transaction_title >>}
@@ -68,7 +77,9 @@
     \item \textbf{Trade Date:} << trade_date >>
     \item \textbf{Effective Date:} << effective_date >>
     \item \textbf{Termination Date:} << termination_date >>
+\templatetag{<<- if unscheduled_holiday_adjustment >>}
     \item \textbf{Unscheduled Holiday Adjustment:} << unscheduled_holiday_adjustment >>
+\templatetag{<<- endif >>}
     \item \textbf{Calculation Agent:} << calculation_agent >>
 \end{itemize}
 
@@ -168,9 +179,15 @@
 \templatetag{<<- if observation_period_shift >>}
     \item \textbf{Observation Period Shift:} << observation_period_shift >>
 \templatetag{<<- endif >>}
+\templatetag{<<- if observation_period_shift_additional_business_days >>}
+    \item \textbf{Observation Period Shift Additional Business Days:} << observation_period_shift_additional_business_days >>
+\templatetag{<<- endif >>}
     \item \textbf{Set-in-Advance:} << set_in_advance >>
 \templatetag{<<- if lockout >>}
     \item \textbf{Lockout:} << lockout >>
+\templatetag{<<- endif >>}
+\templatetag{<<- if lockout_period_business_days >>}
+    \item \textbf{Lockout Period Business Days:} << lockout_period_business_days >>
 \templatetag{<<- endif >>}
 \templatetag{<<- if daily_capped_floored_rate >>}
     \item \textbf{Daily Capped Rate and/or Daily Floored Rate:} << daily_capped_floored_rate >>
@@ -186,10 +203,68 @@
     \item \textbf{Index Method:} << index_method >>
     \item \textbf{Set-in-Advance:} << index_set_advance >>
     \item \textbf{Observation Period Shift:} << index_observation_period_shift >>
+\templatetag{<<- if index_observation_period_shift_additional_business_days >>}
+    \item \textbf{Observation Period Shift Additional Business Days:} << index_observation_period_shift_additional_business_days >>
+\templatetag{<<- endif >>}
     \item \textbf{Day Count Basis:} << index_day_count_basis >>
 \end{itemize}
 \templatetag{<<- endif >>}
 
+\templatetag{<<- endif >>}
+
+% ======================================================================
+% REGULATORY, PARTY, ACCOUNT, AND OFFICE DETAILS
+% ======================================================================
+\templatetag{<<- if party_a_lei or party_b_lei >>}
+\noindent \textbf{Regulatory and Party Identifiers:}
+\begin{itemize}[leftmargin=2cm, label={}, itemsep=3pt]
+\templatetag{<<- if party_a_lei >>}
+    \item LEI for Party A: << party_a_lei >>
+\templatetag{<<- endif >>}
+\templatetag{<<- if party_b_lei >>}
+    \item LEI for Party B: << party_b_lei >>
+\templatetag{<<- endif >>}
+\end{itemize}
+\vspace{0.2cm}
+\templatetag{<<- endif >>}
+
+\templatetag{<<- if party_a_office or party_b_office >>}
+\noindent \textbf{Offices:}
+\begin{itemize}[leftmargin=2cm, label={}, itemsep=3pt]
+\templatetag{<<- if party_a_office >>}
+    \item Party A Office: << party_a_office >>
+\templatetag{<<- endif >>}
+\templatetag{<<- if party_b_office >>}
+    \item Party B Office: << party_b_office >>
+\templatetag{<<- endif >>}
+\end{itemize}
+\vspace{0.2cm}
+\templatetag{<<- endif >>}
+
+\templatetag{<<- if party_a_accounts or party_b_accounts >>}
+\noindent \textbf{Account Details:}
+\begin{itemize}[leftmargin=2cm, label={}, itemsep=3pt]
+\templatetag{<<- if party_a_accounts >>}
+    \item Account Details for Party A: << party_a_accounts >>
+\templatetag{<<- endif >>}
+\templatetag{<<- if party_b_accounts >>}
+    \item Account Details for Party B: << party_b_accounts >>
+\templatetag{<<- endif >>}
+\end{itemize}
+\vspace{0.2cm}
+\templatetag{<<- endif >>}
+
+\templatetag{<<- if party_a_notice_details or party_b_notice_details >>}
+\noindent \textbf{Contact Details for Notice:}
+\begin{itemize}[leftmargin=2cm, label={}, itemsep=3pt]
+\templatetag{<<- if party_a_notice_details >>}
+    \item Party A: << party_a_notice_details >>
+\templatetag{<<- endif >>}
+\templatetag{<<- if party_b_notice_details >>}
+    \item Party B: << party_b_notice_details >>
+\templatetag{<<- endif >>}
+\end{itemize}
+\vspace{0.2cm}
 \templatetag{<<- endif >>}
 
 \vspace{0.4cm}
@@ -201,9 +276,9 @@
 \noindent
 \begin{tabular}{@{}p{0.45\linewidth} p{0.1\linewidth} p{0.45\linewidth}@{}}
 \textbf{Party A} & & \textbf{Party B} \\[0.4cm]
-By: \hrulefill & & By: \hrulefill \\
-Name: \hrulefill & & Name: \hrulefill \\
-Title: \hrulefill & & Title: \hrulefill \\
+By: <<- if party_a_signatory_by >> \textbf{<< party_a_signatory_by >>} <<- else >> \hrulefill <<- endif >> & & By: <<- if party_b_signatory_by >> \textbf{<< party_b_signatory_by >>} <<- else >> \hrulefill <<- endif >> \\
+Name: <<- if party_a_signatory_name >> \textbf{<< party_a_signatory_name >>} <<- else >> \hrulefill <<- endif >> & & Name: <<- if party_b_signatory_name >> \textbf{<< party_b_signatory_name >>} <<- else >> \hrulefill <<- endif >> \\
+Title: <<- if party_a_signatory_title >> \textbf{<< party_a_signatory_title >>} <<- else >> \hrulefill <<- endif >> & & Title: <<- if party_b_signatory_title >> \textbf{<< party_b_signatory_title >>} <<- else >> \hrulefill <<- endif >> \\
 \end{tabular}
 
 \end{document}

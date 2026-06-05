@@ -100,7 +100,8 @@
             { "key": "floating_day_count", "label": "Floating Rate Day Count Fraction", "type": "select", "required": true, "options": ["Actual/360", "30/360", "Actual/365", "Actual/Actual"] },
             { "key": "reset_dates", "label": "Reset Dates", "type": "text", "required": true, "placeholder": "e.g. First day of each Calculation Period" },
             { "key": "floating_averaging", "label": "Method of Averaging", "type": "text", "required": false, "placeholder": "" },
-            { "key": "discounting", "label": "Discounting", "type": "text", "required": false, "placeholder": "" }
+            { "key": "discounting", "label": "Discounting", "type": "text", "required": false, "placeholder": "" },
+            { "key": "floating_compounding", "label": "Compounding", "type": "select", "required": false, "options": ["", "Applicable", "Inapplicable"] }
           ]
         }
       ]
@@ -273,8 +274,14 @@
         { "key": "party_b_accounts", "label": "Party B Account Details", "type": "text", "required": false, "placeholder": "" },
         { "key": "party_a_notice_details", "label": "Party A Notice Details", "type": "text", "required": false, "placeholder": "" },
         { "key": "party_b_notice_details", "label": "Party B Notice Details", "type": "text", "required": false, "placeholder": "" },
+        { "key": "party_a_signatory_by", "label": "Party A Signatory By", "type": "text", "required": false, "placeholder": "e.g. /s/ Amit Sharma" },
+        { "key": "party_b_signatory_by", "label": "Party B Signatory By", "type": "text", "required": false, "placeholder": "e.g. /s/ John Doe" },
+        { "key": "party_a_signatory_name", "label": "Party A Signatory Name", "type": "text", "required": false, "placeholder": "e.g. Amit Sharma" },
+        { "key": "party_b_signatory_name", "label": "Party B Signatory Name", "type": "text", "required": false, "placeholder": "e.g. John Doe" },
         { "key": "party_a_signatory_title", "label": "Party A Signatory Title", "type": "text", "required": false, "placeholder": "e.g. Authorised Signatory" },
         { "key": "party_b_signatory_title", "label": "Party B Signatory Title", "type": "text", "required": false, "placeholder": "e.g. Authorised Signatory" },
+        { "key": "party_a_signatory_date", "label": "Party A Signatory Date", "type": "text", "required": false, "placeholder": "e.g. 03 March 2026" },
+        { "key": "party_b_signatory_date", "label": "Party B Signatory Date", "type": "text", "required": false, "placeholder": "e.g. 03 March 2026" },
         { "key": "broker_arranger_details", "label": "Broker / Arranger", "type": "text", "required": false, "placeholder": "" },
         { "key": "credit_support_provider", "label": "Credit Support Provider", "type": "text", "required": false, "placeholder": "" },
         { "key": "credit_support_document", "label": "Credit Support Document", "type": "text", "required": false, "placeholder": "" }

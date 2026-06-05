@@ -11,6 +11,11 @@ Thread-safe via a simple lock + counter.
 from groq import Groq
 import os
 import threading
+from dotenv import load_dotenv
+from pathlib import Path
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(_PROJECT_ROOT / ".env")
 
 MODEL = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 

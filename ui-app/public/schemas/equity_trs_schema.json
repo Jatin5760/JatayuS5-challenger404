@@ -65,6 +65,34 @@
           "placeholder": "e.g. 25 Bank Street, London"
         },
         {
+          "key": "party_a_lei",
+          "label": "Party A LEI",
+          "type": "text",
+          "required": false,
+          "placeholder": "e.g. 7LTWFZYICNSX8D621K86"
+        },
+        {
+          "key": "party_b_lei",
+          "label": "Party B LEI",
+          "type": "text",
+          "required": false,
+          "placeholder": "e.g. GSVTHJO9YB55GZKFXW85"
+        },
+        {
+          "key": "party_a_attn",
+          "label": "Party A Attention",
+          "type": "text",
+          "required": false,
+          "placeholder": "e.g. FX Derivatives Desk"
+        },
+        {
+          "key": "party_a_address",
+          "label": "Party A Address",
+          "type": "textarea",
+          "required": false,
+          "placeholder": "e.g. Winchester House, London"
+        },
+        {
           "key": "confirmation_date",
           "label": "Confirmation Date",
           "type": "text",
@@ -436,13 +464,9 @@
             {
               "key": "observation_period_shift",
               "label": "Observation Period Shift",
-              "type": "select",
+              "type": "text",
               "required": false,
-              "options": [
-                "",
-                "Applicable",
-                "Not Applicable"
-              ],
+              "placeholder": "e.g. 2 Observation Period Shift Business Days",
               "show_when": {
                 "field": "compounding_averaging_applicable",
                 "value": "true"
@@ -499,6 +523,28 @@
                 "field": "compounding_averaging_applicable",
                 "value": "true"
               }
+            },
+            {
+              "key": "observation_period_shift_additional_business_days",
+              "label": "Observation Period Shift Additional Business Days",
+              "type": "text",
+              "required": false,
+              "placeholder": "e.g. Not Applicable",
+              "show_when": {
+                "field": "compounding_averaging_applicable",
+                "value": "true"
+              }
+            },
+            {
+              "key": "lockout_period_business_days",
+              "label": "Lockout Period Business Days",
+              "type": "text",
+              "required": false,
+              "placeholder": "e.g. 2 Applicable Business Days",
+              "show_when": {
+                "field": "compounding_averaging_applicable",
+                "value": "true"
+              }
             }
           ]
         },
@@ -544,13 +590,9 @@
             {
               "key": "index_observation_period_shift",
               "label": "Observation Period Shift",
-              "type": "select",
+              "type": "text",
               "required": false,
-              "options": [
-                "",
-                "Applicable",
-                "Not Applicable"
-              ],
+              "placeholder": "e.g. 2 Observation Period Shift Business Days",
               "show_when": {
                 "field": "index_provisions_applicable",
                 "value": "true"
@@ -571,10 +613,112 @@
                 "field": "index_provisions_applicable",
                 "value": "true"
               }
+            },
+            {
+              "key": "index_observation_period_shift_additional_business_days",
+              "label": "Observation Period Shift Additional Business Days",
+              "type": "text",
+              "required": false,
+              "placeholder": "e.g. Not Applicable",
+              "show_when": {
+                "field": "index_provisions_applicable",
+                "value": "true"
+              }
             }
           ]
         }
 
+      ]
+    },
+
+    "logistics": {
+      "title": "Logistics & Signatory Details",
+      "always_show": true,
+      "fields": [
+        {
+          "key": "party_a_office",
+          "label": "Party A Office",
+          "type": "text",
+          "required": false,
+          "placeholder": "e.g. London"
+        },
+        {
+          "key": "party_b_office",
+          "label": "Party B Office",
+          "type": "text",
+          "required": false,
+          "placeholder": "e.g. Paris"
+        },
+        {
+          "key": "party_a_accounts",
+          "label": "Account Details (Party A)",
+          "type": "textarea",
+          "required": false,
+          "placeholder": "e.g. As notified by Party A in writing"
+        },
+        {
+          "key": "party_b_accounts",
+          "label": "Account Details (Party B)",
+          "type": "textarea",
+          "required": false,
+          "placeholder": "e.g. As notified by Party B in writing"
+        },
+        {
+          "key": "party_a_notice_details",
+          "label": "Party A Contact Details for Notice",
+          "type": "textarea",
+          "required": false,
+          "placeholder": "e.g. Winchester House, London"
+        },
+        {
+          "key": "party_b_notice_details",
+          "label": "Party B Contact Details for Notice",
+          "type": "textarea",
+          "required": false,
+          "placeholder": "e.g. 16 Boulevard des Italiens, Paris"
+        },
+        {
+          "key": "party_a_signatory_by",
+          "label": "Party A Signatory By",
+          "type": "text",
+          "required": false,
+          "placeholder": "e.g. /s/ Amit Sharma"
+        },
+        {
+          "key": "party_b_signatory_by",
+          "label": "Party B Signatory By",
+          "type": "text",
+          "required": false,
+          "placeholder": "e.g. /s/ John Doe"
+        },
+        {
+          "key": "party_a_signatory_name",
+          "label": "Party A Signatory Name",
+          "type": "text",
+          "required": false,
+          "placeholder": "e.g. Amit Sharma"
+        },
+        {
+          "key": "party_b_signatory_name",
+          "label": "Party B Signatory Name",
+          "type": "text",
+          "required": false,
+          "placeholder": "e.g. John Doe"
+        },
+        {
+          "key": "party_a_signatory_title",
+          "label": "Party A Signatory Title",
+          "type": "text",
+          "required": false,
+          "placeholder": "e.g. VP of Operations"
+        },
+        {
+          "key": "party_b_signatory_title",
+          "label": "Party B Signatory Title",
+          "type": "text",
+          "required": false,
+          "placeholder": "e.g. Authorized Representative"
+        }
       ]
     }
 

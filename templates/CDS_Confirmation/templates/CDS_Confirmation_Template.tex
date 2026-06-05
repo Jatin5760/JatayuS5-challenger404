@@ -11,6 +11,8 @@
 \usepackage{tabularx}
 \usepackage{fancyhdr}
 
+\emergencystretch 3em
+
 \pagestyle{fancy}
 \fancyhf{}
 \renewcommand{\headrulewidth}{0pt}
@@ -25,6 +27,9 @@
 
 \begin{center}
     \textbf{<< party_a_name >>}
+    <<- if party_a_address >>
+    \\ << party_a_address >>
+    <<- endif >>
 \end{center}
 \vspace{0.3cm}
 
@@ -33,9 +38,13 @@
 \end{flushright}
 
 \vspace{0.3cm}
-\noindent \textbf{<< party_b_name >>} \\
-\noindent << party_b_attn >> \\
-\noindent << party_b_address >>
+\noindent \textbf{<< party_b_name >>}
+<<- if party_b_attn >>
+\\ << party_b_attn >>
+<<- endif >>
+<<- if party_b_address >>
+\\ << party_b_address >>
+<<- endif >>
 
 \vspace{0.5cm}
 \noindent \textbf{Re: << transaction_title >>}
@@ -108,7 +117,9 @@
     \item \textbf{Fixed Rate:} << fixed_rate >> basis points per annum
     \item \textbf{Fixed Rate Day Count Fraction:} << fixed_day_count >>
     \item \textbf{Fixed Rate Payer Payment Dates:} << fixed_payment_dates >>
+<<- if business_day_convention >>
     \item \textbf{Business Day Convention:} << business_day_convention >>
+<<- endif >>
 <<- if business_day_centers >>
     \item \textbf{Business Day Centers:} << business_day_centers >>
 <<- endif >>
@@ -133,7 +144,9 @@
     \item \textbf{Floating Rate Payer:} Party A (<< party_a_name >>)
     \item \textbf{Floating Rate Payer Calculation Amount:} << notional_amount >>
     \item \textbf{Conditions to Payment:} Credit Event Notice, Notice of Publicly Available Information
+<<- if credit_event_notice_after_restructuring >>
     \item \textbf{Credit Event Notice After Restructuring:} << credit_event_notice_after_restructuring >>
+<<- endif >>
 \end{itemize}
 
 \vspace{0.5cm}
@@ -146,12 +159,18 @@
 
 \noindent \textbf{4.\quad Credit Events:}
 \begin{itemize}[leftmargin=2cm, label={}, itemsep=3pt]
-    \item \textbf{Bankruptcy:} Applicable
-    \item \textbf{Failure to Pay:} Applicable
+<<- if bankruptcy >>
+    \item \textbf{Bankruptcy:} << bankruptcy >>
+<<- endif >>
+<<- if failure_to_pay >>
+    \item \textbf{Failure to Pay:} << failure_to_pay >>
+<<- endif >>
 <<- if grace_period_extension >>
     \item \textbf{Grace Period Extension:} << grace_period_extension >>
 <<- endif >>
+<<- if payment_requirement >>
     \item \textbf{Payment Requirement:} << payment_requirement >>
+<<- endif >>
 <<- if obligation_acceleration >>
     \item \textbf{Obligation Acceleration:} << obligation_acceleration >>
 <<- endif >>
@@ -161,7 +180,9 @@
 <<- if repudiation_moratorium >>
     \item \textbf{Repudiation/Moratorium:} << repudiation_moratorium >>
 <<- endif >>
+<<- if restructuring >>
     \item \textbf{Restructuring:} << restructuring >>
+<<- endif >>
 <<- if restructuring_maturity_limitation >>
     \item \textbf{Restructuring Maturity Limitation:} << restructuring_maturity_limitation >>
 <<- endif >>
@@ -195,7 +216,9 @@
 <<- if deliverable_obligation_characteristics >>
     \item \textbf{Deliverable Obligation Characteristics:} << deliverable_obligation_characteristics >>
 <<- endif >>
+<<- if escrow >>
     \item \textbf{Escrow:} << escrow >>
+<<- endif >>
 <<- endif >>
     \item \textbf{Reference Price:} << reference_price >>
 \end{itemize}
@@ -300,10 +323,10 @@
 \begin{tabular}{@{}p{0.46\linewidth} p{0.06\linewidth} p{0.46\linewidth}@{}}
 Yours sincerely, & & Confirmed as of the date first above written: \\[0.8cm]
 \textbf{<< party_a_name >>} & & \textbf{<< party_b_name >>} \\[0.8cm]
-By: \makebox[2in]{\hrulefill} & & By: \makebox[2in]{\hrulefill} \\[0.5cm]
-Name: \makebox[2in]{\hrulefill} & & Name: \makebox[2in]{\hrulefill} \\[0.5cm]
-Title: \textbf{<< party_a_signatory_title >>} & & Title: \textbf{<< party_b_signatory_title >>} \\[0.5cm]
-Date: \makebox[2in]{\hrulefill} & & Date: \makebox[2in]{\hrulefill} \\
+By: <<- if party_a_signatory_by >> \textbf{<< party_a_signatory_by >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> & & By: <<- if party_b_signatory_by >> \textbf{<< party_b_signatory_by >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> \\[0.5cm]
+Name: <<- if party_a_signatory_name >> \textbf{<< party_a_signatory_name >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> & & Name: <<- if party_b_signatory_name >> \textbf{<< party_b_signatory_name >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> \\[0.5cm]
+Title: <<- if party_a_signatory_title >> \textbf{<< party_a_signatory_title >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> & & Title: <<- if party_b_signatory_title >> \textbf{<< party_b_signatory_title >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> \\[0.5cm]
+Date: <<- if party_a_signatory_date >> \textbf{<< party_a_signatory_date >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> & & Date: <<- if party_b_signatory_date >> \textbf{<< party_b_signatory_date >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> \\
 \end{tabular}
 
 \end{document}

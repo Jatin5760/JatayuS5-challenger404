@@ -161,7 +161,7 @@ Party & Agreement:
 - "party_b_attn" ← Attention line for Party B
 - "party_b_address" ← Address for Party B
 - "confirmation_date" ← Date of the confirmation letter
-- "transaction_title" ← Full title e.g. "Equity Total Return Swap Confirmation"
+- "transaction_title" ← Full title from the email subject or main body (e.g. "Equity Swap Floating Amount Terms" or "Equity Swap Overnight Floating Amount Terms")
 - "isda_agreement_date" ← ISDA Master Agreement date
 
 General Terms:
@@ -251,8 +251,12 @@ CRITICAL FIELD MAPPING GUIDE FOR CREDIT DEFAULT SWAP (CDS):
 Party & Agreement fields:
 - "party_a_name" ← The PROTECTION BUYER (Floating Rate Payer). Look for "Party A:", "Protection Buyer:", or "Floating Rate Payer:"
 - "party_a_lei" ← Look for "Party A LEI:" or "LEI:" next to Party A
+- "party_a_attn" ← Look for "Attention:" under Party A
+- "party_a_address" ← Look for "Address:" under Party A
 - "party_b_name" ← The PROTECTION SELLER (Fixed Rate Payer). Look for "Party B:", "Protection Seller:", or "Fixed Rate Payer:"
 - "party_b_lei" ← Look for "Party B LEI:" or "LEI:" next to Party B
+- "party_b_attn" ← Look for "Attention:" under Party B
+- "party_b_address" ← Look for "Address:" under Party B
 - "confirmation_date" ← The date of the confirmation letter itself
 - "transaction_title" ← Full title e.g. "European Corporate Single Name Credit Default Swap"
 - "isda_agreement_date" ← Look for "ISDA Master Agreement dated..."
@@ -336,6 +340,10 @@ STRICT RULES:
 10. For payer fields (like "fixed_currency_amount", "floating_currency_amount"), extract WHO is paying (e.g. "Party A (Goldman Sachs International)").
 11. For compounding fields, look in BOTH the Fixed and Floating sections separately.
 12. Return ONLY valid JSON — no markdown, no code fences, no explanation.
+13. For signatory fields:
+    - "party_a_signatory_by" / "party_b_signatory_by": Must ONLY be the electronic signature string (e.g. "/s/ Amit Sharma") if explicitly mentioned in the email sign-off. Otherwise, leave them empty/blank "". Do NOT populate with company/entity names.
+    - "party_a_signatory_name" / "party_b_signatory_name": Must ONLY be a human/person's name. If no human signatory name is explicitly mentioned in the email, leave it empty/blank "". Do NOT populate with the company name.
+    - "party_a_signatory_title" / "party_b_signatory_title": Must ONLY be a human person's professional title (e.g. Managing Director). If no human signatory title is explicitly mentioned, leave it empty/blank "". Do NOT populate with department names like "Derivatives Documentation Desk".
 {extra_rules}
 
 EMAIL CONTENT:
@@ -432,6 +440,7 @@ def extract_trade_data(state: DocForgeState) -> DocForgeState:
             text = match.group(0)
 
         extracted = json.loads(text)
+
         print(f"  [SUCCESS] Extraction complete: {len(extracted)} fields populated")
 
         # Quick quality check: count non-empty fields

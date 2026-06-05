@@ -11,6 +11,8 @@
 \usepackage{tabularx}
 \usepackage{fancyhdr}
 
+\emergencystretch 3em
+
 \pagestyle{fancy}
 \fancyhf{}
 \renewcommand{\headrulewidth}{0pt}
@@ -133,6 +135,9 @@
 <<- endif >>
 <<- if discounting >>
     \item \textbf{Discounting:} << discounting >>
+<<- endif >>
+<<- if floating_compounding >>
+    \item \textbf{Compounding:} << floating_compounding >>
 <<- endif >>
 \end{itemize}
 
@@ -318,6 +323,12 @@
     \item \textbf{Constant Notional Amount:} << constant_notional >>
     \item \textbf{Variable Currency Payer:} << variable_currency_payer >>
     \item \textbf{Variable Currency:} << variable_currency >>
+<<- if party_a_lei >>
+    \item \textbf{Party A LEI:} << party_a_lei >>
+<<- endif >>
+<<- if party_b_lei >>
+    \item \textbf{Party B LEI:} << party_b_lei >>
+<<- endif >>
 <<- if currency_exchange_rate >>
     \item \textbf{Initial Currency Exchange Rate:} << currency_exchange_rate >>
 <<- endif >>
@@ -332,6 +343,61 @@
 <<- endif >>
 \end{itemize}
 
+<<- if fixed_rate_or_amount or fixed_payment_dates >>
+\vspace{0.3cm}
+\noindent \textbf{2.\quad Fixed Amounts:}
+\begin{itemize}[leftmargin=2cm, label={}, itemsep=3pt]
+    \item \textbf{Fixed Amount Payer:} Party A (<< party_a_name >>)
+<<- if fixed_currency_amount >>
+    \item \textbf{Fixed Amount Payer Currency Amount:} << fixed_currency_amount >>
+<<- endif >>
+<<- if fixed_payment_dates >>
+    \item \textbf{Fixed Amount Payer Payment Dates:} << fixed_payment_dates >>
+<<- endif >>
+<<- if fixed_rate_or_amount >>
+    \item \textbf{Fixed Rate:} << fixed_rate_or_amount >>
+<<- endif >>
+<<- if fixed_day_count >>
+    \item \textbf{Fixed Rate Day Count Fraction:} << fixed_day_count >>
+<<- endif >>
+<<- if fixed_compounding >>
+    \item \textbf{Compounding:} << fixed_compounding >>
+<<- endif >>
+\end{itemize}
+<<- endif >>
+
+<<- if floating_rate_option or floating_payment_dates >>
+\vspace{0.3cm}
+\noindent \textbf{3.\quad Floating Amounts:}
+\begin{itemize}[leftmargin=2cm, label={}, itemsep=3pt]
+    \item \textbf{Floating Amount Payer:} Party B (<< party_b_name >>)
+<<- if floating_currency_amount >>
+    \item \textbf{Floating Amount Payer Currency Amount:} << floating_currency_amount >>
+<<- endif >>
+<<- if floating_payment_dates >>
+    \item \textbf{Floating Amount Payer Payment Dates:} << floating_payment_dates >>
+<<- endif >>
+<<- if floating_rate_option >>
+    \item \textbf{Floating Rate Option:} << floating_rate_option >>
+<<- endif >>
+<<- if designated_maturity >>
+    \item \textbf{Designated Maturity:} << designated_maturity >>
+<<- endif >>
+<<- if spread >>
+    \item \textbf{Spread:} << spread >>
+<<- endif >>
+<<- if floating_day_count >>
+    \item \textbf{Floating Rate Day Count Fraction:} << floating_day_count >>
+<<- endif >>
+<<- if reset_dates >>
+    \item \textbf{Reset Dates:} << reset_dates >>
+<<- endif >>
+<<- if floating_compounding >>
+    \item \textbf{Compounding:} << floating_compounding >>
+<<- endif >>
+\end{itemize}
+<<- endif >>
+
 <<- elif exhibit == 'II-I' >>
 \begin{center}
     \textbf{EXHIBIT II-I} \\
@@ -345,6 +411,12 @@
     \item \textbf{Effective Date:} << effective_date >>
     \item \textbf{Termination Date:} << termination_date >>
     \item \textbf{Notional Amount:} << notional_amount >>
+<<- if party_a_lei >>
+    \item \textbf{Party A LEI:} << party_a_lei >>
+<<- endif >>
+<<- if party_b_lei >>
+    \item \textbf{Party B LEI:} << party_b_lei >>
+<<- endif >>
 <<- if calculation_agent >>
     \item \textbf{Calculation Agent:} << calculation_agent >>
 <<- endif >>
@@ -375,6 +447,12 @@
     \item \textbf{Effective Date:} << effective_date >>
     \item \textbf{Termination Date:} << termination_date >>
     \item \textbf{Notional Amount:} << notional_amount >>
+<<- if party_a_lei >>
+    \item \textbf{Party A LEI:} << party_a_lei >>
+<<- endif >>
+<<- if party_b_lei >>
+    \item \textbf{Party B LEI:} << party_b_lei >>
+<<- endif >>
 <<- if calculation_agent >>
     \item \textbf{Calculation Agent:} << calculation_agent >>
 <<- endif >>
@@ -539,10 +617,10 @@
 \begin{tabular}{@{}p{0.46\linewidth} p{0.06\linewidth} p{0.46\linewidth}@{}}
 Yours faithfully, & & Confirmed as of the date first above written: \\[0.8cm]
 \textbf{<< party_a_name >>} & & \textbf{<< party_b_name >>} \\[0.8cm]
-By: \makebox[2in]{\hrulefill} & & By: \makebox[2in]{\hrulefill} \\[0.5cm]
-Name: \makebox[2in]{\hrulefill} & & Name: \makebox[2in]{\hrulefill} \\[0.5cm]
-Title: \textbf{<< party_a_signatory_title >>} & & Title: \textbf{<< party_b_signatory_title >>} \\[0.5cm]
-Date: \makebox[2in]{\hrulefill} & & Date: \makebox[2in]{\hrulefill} \\
+By: <<- if party_a_signatory_by >> \textbf{<< party_a_signatory_by >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> & & By: <<- if party_b_signatory_by >> \textbf{<< party_b_signatory_by >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> \\[0.5cm]
+Name: <<- if party_a_signatory_name >> \textbf{<< party_a_signatory_name >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> & & Name: <<- if party_b_signatory_name >> \textbf{<< party_b_signatory_name >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> \\[0.5cm]
+Title: <<- if party_a_signatory_title >> \textbf{<< party_a_signatory_title >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> & & Title: <<- if party_b_signatory_title >> \textbf{<< party_b_signatory_title >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> \\[0.5cm]
+Date: <<- if party_a_signatory_date >> \textbf{<< party_a_signatory_date >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> & & Date: <<- if party_b_signatory_date >> \textbf{<< party_b_signatory_date >>} <<- else >> \makebox[2in]{\hrulefill} <<- endif >> \\
 \end{tabular}
 
 \end{document}

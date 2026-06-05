@@ -102,7 +102,7 @@ def compile_to_pdf(tex_content, trade_data, output_dir=None):
     result = subprocess.run(
         [PDFLATEX, "-interaction=nonstopmode",
          "-output-directory", out_dir, tex_path],
-        capture_output=True, text=True
+        capture_output=True, text=True, errors="replace"
     )
 
     if os.path.exists(pdf_path):
@@ -168,6 +168,9 @@ def _escape_latex(data):
         }
         for placeholder, escaped_seq in restorations.items():
             data = data.replace(placeholder, escaped_seq)
+        
+        # Convert newlines to LaTeX line breaks for proper multiline rendering
+        data = data.replace('\n', r' \newline ')
         return data
     else:
         return data

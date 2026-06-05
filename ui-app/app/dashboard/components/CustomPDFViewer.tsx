@@ -5,6 +5,8 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { API_BASE, authHeaders } from '../../../lib/api';
+import { Schema, SchemaSection, SchemaField } from '../types';
+import { FieldRenderer } from './FormElements';
 
 // Set worker for react-pdf
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -29,6 +31,7 @@ interface CustomPDFViewerProps {
   initialIsSigned?: boolean;
   initialIsClientSigned?: boolean;
   initialIsReleased?: boolean;
+  onPdfRegenerated?: (newBlobUrl: string, newFilename: string, newFileId: string, updatedData: Record<string, any>) => void;
 }
 
 export default function CustomPDFViewer({
@@ -50,10 +53,80 @@ export default function CustomPDFViewer({
   initialIsSigned,
   initialIsClientSigned,
   initialIsReleased,
+  onPdfRegenerated,
 }: CustomPDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
+
+  // Document and Schema editing states
+  const [docData, setDocData] = useState<any>(null);
+  const [schema, setSchema] = useState<Schema | null>(null);
+  const [editData, setEditData] = useState<Record<string, any>>({});
+  const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+
+  // Load document and schema details for inline editing
+  useEffect(() => {
+    if (!docId) return;
+
+    const loadDocAndSchema = async () => {
+      try {
+        const docResp = await fetch(`${API_BASE}/api/documents/${docId}`, { headers: authHeaders() });
+        if (!docResp.ok) return;
+        const fullDoc = await docResp.json();
+        setDocData(fullDoc);
+
+        const docType = fullDoc.doc_type;
+        const schemaFile = docType === 'fx_ndf' ? '/schemas/fx_schema.json'
+                         : docType === 'irs' ? '/schemas/irs_schema.json'
+                         : docType === 'cds' ? '/schemas/cds_schema.json'
+                         : docType === 'equity_trs' ? '/schemas/equity_trs_schema.json'
+                         : '';
+        if (schemaFile) {
+          const schemaResp = await fetch(schemaFile);
+          if (schemaResp.ok) {
+            const schemaObj = await schemaResp.json();
+            setSchema(schemaObj);
+            
+            // Expand first section by default
+            const secs = schemaObj.sections;
+            if (secs) {
+              const keys = Array.isArray(secs) ? secs.map((_, i) => String(i)) : Object.keys(secs);
+              if (keys.length > 0) {
+                setExpandedSections({ [keys[0]]: true });
+              }
+            }
+          }
+        }
+
+        const rawData = fullDoc.data || {};
+        const formatted: Record<string, any> = {};
+        for (const [key, value] of Object.entries(rawData)) {
+          if (Array.isArray(value)) {
+            formatted['__rep_' + key] = value;
+          } else {
+            formatted[key] = value;
+          }
+        }
+        setEditData(formatted);
+      } catch (e) {
+        console.error("Failed to load document/schema:", e);
+      }
+    };
+
+    void loadDocAndSchema();
+  }, [docId, pdfUrl]);
+
+  // Zoom response: open edit side -> 60%, close -> 100%
+  useEffect(() => {
+    if (isEditPanelOpen) {
+      setScale(0.6);
+    } else {
+      setScale(1.0);
+    }
+  }, [isEditPanelOpen]);
 
   // Signature States
   const [localPdfUrl, setLocalPdfUrl] = useState(pdfUrl);
@@ -69,6 +142,15 @@ export default function CustomPDFViewer({
   const [isDrawing, setIsDrawing] = useState(false);
   const [toast, setToast] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
+
+  // New States for Unified Signature Dialog
+  const [signatoryName, setSignatoryName] = useState('');
+  const [signatoryTitle, setSignatoryTitle] = useState('');
+  const [signatoryDate, setSignatoryDate] = useState('');
+  const [sigScale, setSigScale] = useState<number>(1.0);
+  const [sigXOffset, setSigXOffset] = useState<number>(0);
+  const [sigYOffset, setSigYOffset] = useState<number>(0);
+  const [tempSigUrl, setTempSigUrl] = useState('');
 
   // Client Email States
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -103,6 +185,23 @@ export default function CustomPDFViewer({
     }
   }, []);
 
+  // Load default signatory details and adjustments from docData
+  useEffect(() => {
+    if (docData) {
+      const pName = docData.data?.party_a_signatory_name || docData.party_a_signed_name || '';
+      const pTitle = docData.data?.party_a_signatory_title || '';
+      const pDate = docData.data?.party_a_signatory_date || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      setSignatoryName(pName);
+      setSignatoryTitle(pTitle);
+      setSignatoryDate(pDate);
+
+      // Load saved stamp options if any
+      setSigScale(docData.party_a_sig_scale ?? 1.0);
+      setSigXOffset(docData.party_a_sig_x_offset ?? 0);
+      setSigYOffset(docData.party_a_sig_y_offset ?? 0);
+    }
+  }, [docData]);
+
   // Update canvas for typed text in real time
   useEffect(() => {
     if (signatureType === 'type' && canvasRef.current) {
@@ -127,6 +226,8 @@ export default function CustomPDFViewer({
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(typedName || 'Sign Here', canvas.width / 2, canvas.height / 2 - 10);
+        
+        setTempSigUrl(canvas.toDataURL('image/png'));
       }
     }
   }, [typedName, activeFont, signatureType, isSigningModalOpen]);
@@ -190,6 +291,10 @@ export default function CustomPDFViewer({
 
   const stopDrawing = () => {
     setIsDrawing(false);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      setTempSigUrl(canvas.toDataURL('image/png'));
+    }
   };
 
   const clearCanvas = () => {
@@ -199,6 +304,7 @@ export default function CustomPDFViewer({
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setTypedName('');
+    setTempSigUrl('');
   };
 
   const submitSignature = async () => {
@@ -228,7 +334,15 @@ export default function CustomPDFViewer({
       const response = await fetch(`${API_BASE}/api/documents/${docId}/sign`, {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ signature_data: signatureData }),
+        body: JSON.stringify({ 
+          signature_data: signatureData,
+          signatory_name: signatoryName,
+          signatory_title: signatoryTitle,
+          signatory_date: signatoryDate,
+          scale: sigScale,
+          x_offset: sigXOffset,
+          y_offset: sigYOffset,
+        }),
       });
 
       if (!response.ok) {
@@ -258,11 +372,17 @@ export default function CustomPDFViewer({
       try {
         const docResp = await fetch(`${API_BASE}/api/documents/${docId}`, { headers: authHeaders() });
         if (docResp.ok) {
-          const docData = await docResp.json();
-          const clientEmailData = docData.client_email || docData.data?.party_b_email || '';
+          const updatedDoc = await docResp.json();
+          setDocData(updatedDoc);
+          
+          if (onPdfRegenerated && updatedDoc.pdf_file_id) {
+            onPdfRegenerated(blobUrl, filename, updatedDoc.pdf_file_id, updatedDoc.data || {});
+          }
+
+          const clientEmailData = updatedDoc.client_email || updatedDoc.data?.party_b_email || '';
           setClientEmail(clientEmailData);
-          setEmailSubject(`Action Required: Trade Confirmation Countersignature — ${docData.summary || ''}`);
-          const clientName = docData.data?.party_b_name || docData.data?.counterparty || 'Partner';
+          setEmailSubject(`Action Required: Trade Confirmation Countersignature — ${updatedDoc.summary || ''}`);
+          const clientName = updatedDoc.data?.party_b_name || updatedDoc.data?.counterparty || 'Partner';
           setEmailBody(`Dear ${clientName},\n\nWe have reviewed and signed the Trade Confirmation (attached).\n\nPlease review and countersign the document at your earliest convenience.\n\nBest regards,\nOperations Desk`);
         }
       } catch (e) {
@@ -308,6 +428,171 @@ export default function CustomPDFViewer({
     }
   };
 
+  // Helper to determine if a section should be visible
+  const shouldShowSection = (sec: SchemaSection, allData: Record<string, any>) => {
+    if (sec.always_show) return true;
+    
+    if (sec.show_for_exhibits && !sec.show_for_exhibits.includes(allData.exhibit || '')) {
+      return false;
+    }
+    
+    if (sec.show_for_termination && sec.show_for_termination !== allData.termination_type) {
+      return false;
+    }
+    
+    if (sec.show_for_models && allData.model_type && !sec.show_for_models.includes(allData.model_type)) {
+      return false;
+    }
+    
+    if (sec.show_when) {
+      const srcVal = allData[sec.show_when.field];
+      const targetVal = sec.show_when.value;
+      const operator = sec.show_when.operator || 'equal';
+      if (operator === 'not_equal') {
+        if (srcVal === targetVal) return false;
+      } else {
+        if (srcVal !== targetVal) return false;
+      }
+    }
+
+    const hasRestrictor = sec.always_show || sec.show_for_exhibits || sec.show_for_termination || sec.show_for_models || sec.show_when;
+    return !!hasRestrictor;
+  };
+
+  // Helper to toggle section expanded state
+  const toggleSection = (sectionKey: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey]
+    }));
+  };
+
+  // Helper to assemble final payload
+  const assembleEditData = (rawData: Record<string, any>, docType: string): Record<string, any> => {
+    const data: Record<string, any> = {};
+    
+    // Extract standard fields (not starting with __rep_)
+    for (const [k, v] of Object.entries(rawData)) {
+      if (!k.startsWith('__rep_')) {
+        data[k] = v;
+      }
+    }
+    
+    // Extract repeater fields (convert __rep_key to key)
+    for (const [k, v] of Object.entries(rawData)) {
+      if (!k.startsWith('__rep_')) continue;
+      const realKey = k.replace('__rep_', '');
+      if (Array.isArray(v) && v.length > 0) {
+        if (typeof v[0] === 'string') {
+          data[realKey] = (v as string[]).filter(s => s.trim());
+        } else {
+          data[realKey] = (v as Array<{ title: string; description: string }>)
+            .filter(p => p.title.trim() || p.description.trim());
+        }
+      } else {
+        data[realKey] = [];
+      }
+    }
+    
+    return data;
+  };
+
+  const handleSaveAndRegenerate = async () => {
+    if (!docId || !docData) return;
+    setIsRegenerating(true);
+    try {
+      const docType = docData.doc_type;
+      const assembledPayload: Record<string, any> = {
+        ...assembleEditData(editData, docType),
+        doc_id: docId
+      };
+      
+      const endpoint = docType === 'fx_ndf' ? '/generate/fx_ndf'
+                     : docType === 'cds' ? '/generate/cds'
+                     : docType === 'equity_trs' ? '/generate/equity_trs'
+                     : '/generate/irs';
+                     
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(assembledPayload),
+      });
+      
+      if (!response.ok) {
+        let errMsg = 'Failed to regenerate PDF';
+        try {
+          const d = await response.json();
+          errMsg = d.error || errMsg;
+        } catch {}
+        showToastMsg(`❌ ${errMsg}`);
+        setIsRegenerating(false);
+        return;
+      }
+      
+      const pdfBlob = await response.blob();
+      const contentDisp = response.headers.get('Content-Disposition') || '';
+      let filename = 'confirmation.pdf';
+      const match = contentDisp.match(/filename=([^;]+)/);
+      if (match) filename = match[1].replace(/"/g, '').trim();
+      const fileId = response.headers.get('X-TradeDoc-File-Id') || '';
+      
+      let newSummary = '';
+      if (docType === 'fx_ndf') {
+        newSummary = `${assembledPayload.reference_currency || '?'}/${assembledPayload.settlement_currency || '?'} — ${assembledPayload.notional_amount || ''}`;
+      } else if (docType === 'cds') {
+        newSummary = `${assembledPayload.reference_entity || '?'} — ${assembledPayload.notional_amount || ''} @ ${assembledPayload.fixed_rate || '?'}bps`;
+      } else if (docType === 'equity_trs') {
+        newSummary = `Model ${assembledPayload.model_type || '?'} — ${assembledPayload.party_a_name || ''} vs ${assembledPayload.party_b_name || ''}`;
+      } else {
+        newSummary = `Exhibit ${(assembledPayload.exhibit as string) || '?'} — ${assembledPayload.party_a_name || ''} vs ${assembledPayload.party_b_name || ''}`;
+      }
+      
+      const savePayload: Record<string, any> = {
+        doc_type: docType,
+        name: docData.name,
+        icon: docData.icon || '📄',
+        summary: newSummary,
+        ai_created: docData.ai_created || false,
+        data: assembledPayload,
+        is_draft: false,
+        pdf_file_id: fileId
+      };
+      if (docData.source_email) {
+        savePayload.source_email = docData.source_email;
+      }
+      
+      const putResp = await fetch(`${API_BASE}/api/documents/${docId}`, {
+        method: 'PUT',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(savePayload),
+      });
+      
+      if (!putResp.ok) {
+        showToastMsg('❌ PDF generated, but database update failed');
+        setIsRegenerating(false);
+        return;
+      }
+      
+      if (localPdfUrl && localPdfUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(localPdfUrl);
+      }
+      const newBlobUrl = URL.createObjectURL(pdfBlob);
+      setLocalPdfUrl(newBlobUrl);
+      
+      if (onPdfRegenerated) {
+        onPdfRegenerated(newBlobUrl, filename, fileId, assembledPayload);
+      }
+      
+      showToastMsg('✅ PDF regenerated successfully!');
+      setIsEditPanelOpen(false);
+    } catch (e) {
+      console.error(e);
+      showToastMsg('❌ An error occurred during PDF regeneration');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
     setPageNumber(1);
@@ -336,6 +621,8 @@ export default function CustomPDFViewer({
 
         {/* Right: Context-Aware Action Buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
+          {/* Edit Details removed - unified in signature dialog */}
+
           {/* Convert to Word */}
           <button
             onClick={onConvertToWord}
@@ -567,6 +854,160 @@ export default function CustomPDFViewer({
             ))}
           </Document>
         </div>
+
+        {/* Right: Edit Fields Sidebar */}
+        {isEditPanelOpen && schema && (
+          <div className="w-[420px] bg-white border-l border-slate-200 flex flex-col h-full shadow-lg z-10 animate-in slide-in-from-right duration-300">
+            {/* Sidebar Header */}
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div>
+                <h4 className="text-sm font-bold text-slate-800">Edit Document Fields</h4>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Modify trade details directly</p>
+              </div>
+              <button 
+                onClick={() => setIsEditPanelOpen(false)}
+                className="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors border border-slate-100 shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            {/* Sidebar Fields (Scrollable Accordion) */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
+              {(() => {
+                const sectionsList: SchemaSection[] = schema.sections
+                  ? (Array.isArray(schema.sections)
+                      ? schema.sections
+                      : Object.entries(schema.sections).map(([id, sec]) => ({ ...sec, id })))
+                  : [];
+
+                const signatoryFieldKeys = [
+                  'party_a_signatory_name',
+                  'party_a_signatory_title',
+                  'party_a_signatory_date'
+                ];
+
+                const filteredSectionsList = sectionsList
+                  .map(section => {
+                    const filteredFields = (section.fields || []).filter(f => signatoryFieldKeys.includes(f.key));
+                    const filteredSubsections = (section.subsections || []).map(sub => {
+                      return {
+                        ...sub,
+                        fields: sub.fields.filter(f => signatoryFieldKeys.includes(f.key))
+                      };
+                    }).filter(sub => sub.fields.length > 0);
+
+                    if (filteredFields.length === 0 && filteredSubsections.length === 0) {
+                      return null;
+                    }
+
+                    return {
+                      ...section,
+                      fields: filteredFields,
+                      subsections: filteredSubsections
+                    };
+                  })
+                  .filter((sec): sec is any => sec !== null) as SchemaSection[];
+
+                if (filteredSectionsList.length === 0) {
+                  return (
+                    <div className="p-8 text-center text-slate-400 font-medium text-xs">
+                      No signatory credentials found for this document type.
+                    </div>
+                  );
+                }
+
+                return filteredSectionsList.map((section, idx) => {
+                  const sectionKey = section.id || String(idx);
+                  const isExpanded = !!expandedSections[sectionKey];
+                  if (!shouldShowSection(section, editData)) return null;
+
+                  return (
+                    <div key={sectionKey} className="border border-slate-150 rounded-2xl overflow-hidden bg-slate-50/20">
+                      {/* Accordion Header */}
+                      <button
+                        type="button"
+                        onClick={() => toggleSection(sectionKey)}
+                        className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100/80 transition-colors text-left"
+                      >
+                        <span className="text-xs font-bold text-slate-700 tracking-wide uppercase">
+                          {section.title}
+                        </span>
+                        <svg
+                          className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {/* Accordion Content */}
+                      {isExpanded && (
+                        <div className="p-4 bg-white space-y-4 border-t border-slate-100">
+                          {(section.fields || []).map(field => (
+                            <div key={field.key}>
+                              <FieldRenderer
+                                field={field}
+                                stepData={editData}
+                                onUpdate={(k, v) => setEditData(prev => ({ ...prev, [k]: v }))}
+                                aiMode={docData?.ai_created || false}
+                                allData={editData}
+                              />
+                            </div>
+                          ))}
+                          {section.subsections && section.subsections.map((sub, sidx) => (
+                            <div key={sidx} className="space-y-4 pt-2">
+                              <div className="border-b border-slate-50 pb-1">
+                                <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                  {sub.title}
+                                </h5>
+                              </div>
+                              {sub.fields.map(field => (
+                                <div key={field.key}>
+                                  <FieldRenderer
+                                    field={field}
+                                    stepData={editData}
+                                    onUpdate={(k, v) => setEditData(prev => ({ ...prev, [k]: v }))}
+                                    aiMode={docData?.ai_created || false}
+                                    allData={editData}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+
+            {/* Sidebar Footer */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSaveAndRegenerate}
+                disabled={isRegenerating}
+                className="flex-1 py-3 px-4 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-indigo-100"
+              >
+                {isRegenerating ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Updating PDF...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Save & Regenerate PDF
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Toast Overlay ── */}
@@ -579,7 +1020,7 @@ export default function CustomPDFViewer({
       {/* ── Signature Canvas Modal ── */}
       {isSigningModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col animate-scale-in">
+          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col animate-scale-in">
             {/* Modal Header */}
             <div className="p-6 bg-gradient-to-r from-indigo-50 to-indigo-100/50 border-b border-indigo-100 flex items-center justify-between">
               <div>
@@ -622,9 +1063,10 @@ export default function CustomPDFViewer({
             </div>
 
             {/* Modal Content */}
-            <div className="px-6 pb-6 flex flex-col gap-4">
+            <div className="px-6 pb-6 flex flex-col gap-4 overflow-y-auto max-h-[75vh] custom-scrollbar">
               {signatureType === 'type' && (
                 <div className="flex flex-col gap-3">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Type Name for Signature</label>
                   <input
                     type="text"
                     value={typedName}
@@ -665,60 +1107,220 @@ export default function CustomPDFViewer({
               )}
 
               {/* Signature Board (Canvas) */}
-              <div className="relative border border-slate-200 bg-slate-50/50 rounded-2xl overflow-hidden shadow-inner flex flex-col items-center">
-                <canvas
-                  ref={canvasRef}
-                  width={500}
-                  height={200}
-                  className="bg-white cursor-crosshair max-w-full touch-none"
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
-                  onTouchStart={startDrawing}
-                  onTouchMove={draw}
-                  onTouchEnd={stopDrawing}
-                />
-                {signatureType === 'draw' && (
-                  <div className="absolute bottom-3 left-4 text-[10px] text-slate-400 font-bold pointer-events-none select-none uppercase tracking-widest">
-                    Draw using mouse or touch screen
-                  </div>
-                )}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  {signatureType === 'draw' ? 'Draw Signature' : 'Signature Preview Canvas'}
+                </label>
+                <div className="relative border border-slate-200 bg-slate-50/50 rounded-2xl overflow-hidden shadow-inner flex flex-col items-center">
+                  <canvas
+                    ref={canvasRef}
+                    width={500}
+                    height={180}
+                    className="bg-white cursor-crosshair max-w-full touch-none"
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={stopDrawing}
+                  />
+                  {signatureType === 'draw' && (
+                    <div className="absolute bottom-3 left-4 text-[10px] text-slate-400 font-bold pointer-events-none select-none uppercase tracking-widest">
+                      Draw using mouse or touch screen
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Modal Footer Controls */}
-              <div className="flex items-center justify-between mt-2">
+              {/* Clear Board button */}
+              <div className="flex justify-start">
                 <button
                   type="button"
                   onClick={clearCanvas}
-                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors"
+                  className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors shadow-sm"
                 >
-                  Clear Board
+                  🧹 Clear Board
                 </button>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsSigningModalOpen(false)}
-                    className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl font-bold text-xs hover:bg-slate-100 transition-colors shadow-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={submitSignature}
-                    disabled={isSigningApiLoading}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-100 flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    {isSigningApiLoading ? (
-                      <>
-                        <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Signing...
-                      </>
-                    ) : (
-                      'Confirm & Sign'
-                    )}
-                  </button>
+              </div>
+
+              {/* Signatory details input fields */}
+              <div className="border-t border-slate-100 pt-4 flex flex-col gap-3">
+                <div className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">Signatory Details</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-slate-500">Signatory Name</label>
+                    <input
+                      type="text"
+                      value={signatoryName}
+                      onChange={(e) => setSignatoryName(e.target.value)}
+                      placeholder="e.g. John Doe"
+                      className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs font-semibold focus:outline-none focus:border-indigo-400 focus:bg-white transition-all shadow-inner"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-slate-500">Signatory Title</label>
+                    <input
+                      type="text"
+                      value={signatoryTitle}
+                      onChange={(e) => setSignatoryTitle(e.target.value)}
+                      placeholder="e.g. Managing Director"
+                      className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs font-semibold focus:outline-none focus:border-indigo-400 focus:bg-white transition-all shadow-inner"
+                    />
+                  </div>
                 </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-slate-500">Signatory Date</label>
+                  <input
+                    type="text"
+                    value={signatoryDate}
+                    onChange={(e) => setSignatoryDate(e.target.value)}
+                    placeholder="e.g. 20 March 2026"
+                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs font-semibold focus:outline-none focus:border-indigo-400 focus:bg-white transition-all shadow-inner"
+                  />
+                </div>
+              </div>
+
+              {/* Adjustments (Scale and Offsets) */}
+              <div className="border-t border-slate-100 pt-4 flex flex-col gap-3">
+                <div className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">Signature Adjustments</div>
+                
+                {/* Size (Scale) */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                    <span>Size (Scale)</span>
+                    <span className="text-indigo-600">{sigScale.toFixed(2)}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="1.5"
+                    step="0.05"
+                    value={sigScale}
+                    onChange={(e) => setSigScale(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  />
+                </div>
+
+                {/* X and Y Offsets in one row */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* X Offset */}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                      <span>Horizontal Shift (Left/Right)</span>
+                      <span className="text-indigo-600">{sigXOffset > 0 ? `+${sigXOffset}` : sigXOffset}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-100"
+                      max="100"
+                      step="1"
+                      value={sigXOffset}
+                      onChange={(e) => setSigXOffset(parseInt(e.target.value))}
+                      className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                  </div>
+
+                  {/* Y Offset */}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                      <span>Vertical Shift (Up/Down)</span>
+                      <span className="text-indigo-600">{sigYOffset > 0 ? `+${sigYOffset}` : sigYOffset}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-50"
+                      max="50"
+                      step="1"
+                      value={sigYOffset}
+                      onChange={(e) => setSigYOffset(parseInt(e.target.value))}
+                      className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Preview Block */}
+              <div className="border-t border-slate-100 pt-4">
+                <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50/50 flex flex-col gap-3">
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Live PDF Signature Block Preview</div>
+                  
+                  <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm min-h-[150px] flex flex-col justify-between relative overflow-hidden">
+                    <div className="grid grid-cols-2 gap-4 text-left">
+                      {/* Party A */}
+                      <div>
+                        <div className="text-[10px] font-black text-slate-800 border-b border-slate-100 pb-1 mb-1.5 truncate">
+                          {docData?.data?.party_a_name || 'Party A'}
+                        </div>
+                        
+                        <div className="relative h-12 border-b border-dashed border-slate-200 flex items-end mb-1.5">
+                          <span className="text-[10px] text-slate-400 select-none mr-2 mb-0.5">By:</span>
+                          {tempSigUrl && (
+                            <img 
+                              src={tempSigUrl} 
+                              alt="Signature Preview" 
+                              className="absolute pointer-events-none origin-bottom-left"
+                              style={{
+                                left: '20px',
+                                bottom: '2px',
+                                width: '112px', // 140px scaled down slightly for UI card
+                                height: '40px', // 50px scaled down slightly for UI card
+                                transform: `translate(${sigXOffset * 1.2}px, ${-sigYOffset * 0.8}px) scale(${sigScale})`,
+                              }}
+                            />
+                          )}
+                        </div>
+                        
+                        <div className="flex flex-col gap-0.5 text-[10px] leading-tight font-medium">
+                          <div className="truncate"><span className="text-slate-400 font-normal">Name:</span> <span className="font-bold text-slate-700">{signatoryName || '—'}</span></div>
+                          <div className="truncate"><span className="text-slate-400 font-normal">Title:</span> <span className="font-bold text-slate-700">{signatoryTitle || '—'}</span></div>
+                          <div className="truncate"><span className="text-slate-400 font-normal">Date:</span> <span className="font-bold text-slate-700">{signatoryDate || '—'}</span></div>
+                        </div>
+                      </div>
+                      
+                      {/* Party B */}
+                      <div className="opacity-30 select-none">
+                        <div className="text-[10px] font-black text-slate-800 border-b border-slate-100 pb-1 mb-1.5 truncate">
+                          {docData?.data?.party_b_name || docData?.data?.counterparty || 'Party B'}
+                        </div>
+                        <div className="h-12 border-b border-dashed border-slate-200 flex items-end mb-1.5">
+                          <span className="text-[10px] text-slate-400 mr-2 mb-0.5">By:</span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 text-[10px] leading-tight">
+                          <div><span className="text-slate-400">Name:</span> <span>—</span></div>
+                          <div><span className="text-slate-400">Title:</span> <span>—</span></div>
+                          <div><span className="text-slate-400">Date:</span> <span>—</span></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer Controls */}
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSigningModalOpen(false)}
+                  className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl font-bold text-xs hover:bg-slate-100 transition-colors shadow-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={submitSignature}
+                  disabled={isSigningApiLoading}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-100 flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {isSigningApiLoading ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Signing...
+                    </>
+                  ) : (
+                    'Confirm & Sign'
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -772,6 +1374,7 @@ export default function CustomPDFViewer({
                   type="button"
                   onClick={() => {
                     setIsConfirmSignOpen(false);
+                    setIsEditPanelOpen(false);
                     setIsSigningModalOpen(true);
                     setTimeout(() => clearCanvas(), 50);
                   }}

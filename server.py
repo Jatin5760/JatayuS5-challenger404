@@ -323,14 +323,29 @@ def require_auth(fn):
     return wrapper
 
 
-def _build_chat_prompt(user_msg: str) -> str:
-    """Build prompt for global ChatCopilot — stateless, no history."""
+def _build_chat_prompt(user_msg: str, doc_type: str | None = None, current_data: dict | None = None) -> str:
+    """Build prompt for global ChatCopilot — stateless, no history, but with document context if available."""
     current_time = datetime.now(timezone.utc).strftime("%B %d, %Y")
     prompt = f"You are TradeDoc Copilot, a friendly and knowledgeable AI assistant built into the TradeDoc AI platform. Today's date is {current_time}. "
     prompt += "You specialize in trade confirmation documents for financial derivatives — IRS, CDS, FX NDF, Equity TRS — but you're also happy to help with general questions. "
-    prompt += "Be warm, conversational, and genuinely helpful. Provide rich, detailed explanations with examples when relevant. "
+    
+    if doc_type and current_data:
+        doc_display = _doc_display_name(doc_type)
+        prompt += f"\n\nCurrently, the user is viewing a {doc_display} document with the following details:\n"
+        # Format the filled fields nicely for prompt context
+        filled_fields = {}
+        for k, v in current_data.items():
+            if _is_value_filled(v):
+                # Filter out raw signature image string as it's too long
+                if k in ["party_a_signature_image", "party_b_signature_image"]:
+                    continue
+                filled_fields[k] = v
+        prompt += json.dumps(filled_fields, indent=2, default=str)
+        prompt += "\nUse this document context to answer the user's question accurately. If the user asks about the current trade, transaction, or document terms, reference these details directly."
+
+    prompt += "\n\nBe warm, conversational, and genuinely helpful. Provide rich, detailed explanations with examples when relevant. "
     prompt += "Use clean markdown formatting (**bold** for key terms, bullet lists where helpful, ### headings for sections) to make replies beautiful and easy to read. "
-    prompt += f"User: {user_msg}\nAssistant:"
+    prompt += f"\nUser: {user_msg}\nAssistant:"
     return prompt
 
 # ── Local Form Assistant Helpers ─────────────────────────
@@ -1179,7 +1194,7 @@ def api_chat():
             return _reply_local(reply, action)
 
         # ── Global Scope (ChatCopilot — stateless, no DB, no session, no history) ──
-        prompt = _build_chat_prompt(user_msg)
+        prompt = _build_chat_prompt(user_msg, doc_type=doc_type, current_data=current_data)
 
         reply = call_groq(prompt, max_tokens=_max_t(500))
 
@@ -1441,11 +1456,11 @@ def api_update_document(doc_id):
         # Normal update within same collection
         current_coll = db.documents if is_in_final else db.drafts
         
-        # Guard: Prevent editing verified/signed documents directly in the final collection
+        # Guard: Prevent editing released documents directly in the final collection
         if is_in_final:
             existing = db.documents.find_one({"_id": oid, "user_id": g.current_user_id})
-            if existing and existing.get("signed"):
-                return jsonify({"error": "Cannot modify a signed and verified document. Please demote it to draft first."}), 400
+            if existing and existing.get("released"):
+                return jsonify({"error": "Cannot modify a released document."}), 400
         update_fields["is_draft"] = bool(new_is_draft) if new_is_draft is not None else (not is_in_final)  # type: ignore[assignment]
 
         # Upload PDF to cloud storage if missing OR if a new pdf_file_id is provided
@@ -1701,9 +1716,10 @@ def _append_or_update_audit_trail_page(pdf_path, doc_id, doc_type, summary, part
     writer = PdfWriter()
     
     has_audit_page = False
-    # If party_b_metadata is provided, it means we are updating the existing audit page
-    if party_b_metadata is not None and num_pages > 1:
-        has_audit_page = True
+    if num_pages > 0:
+        last_page_text = reader.pages[-1].extract_text()
+        if "TRADEDOC AI - AUDIT TRAIL CERTIFICATE" in last_page_text:
+            has_audit_page = True
         
     pages_to_hash = num_pages - 1 if has_audit_page else num_pages
     
@@ -1738,7 +1754,7 @@ def _append_or_update_audit_trail_page(pdf_path, doc_id, doc_type, summary, part
         writer.write(f)
 
 
-def _stamp_signature_to_pdf(input_pdf_path, output_pdf_path, signature_base64_str, user_name, audit_metadata=None, is_party_b=False):
+def _stamp_signature_to_pdf(input_pdf_path, output_pdf_path, signature_base64_str, user_name, audit_metadata=None, is_party_b=False, doc_type=None, scale=1.0, x_offset=0.0, y_offset=0.0):
     import io
     import base64
     from datetime import datetime, timezone, timedelta
@@ -1746,6 +1762,19 @@ def _stamp_signature_to_pdf(input_pdf_path, output_pdf_path, signature_base64_st
     from pypdf import PdfReader, PdfWriter
     from reportlab.pdfgen import canvas
     from reportlab.lib.utils import ImageReader
+
+    try:
+        scale = float(scale)
+    except (TypeError, ValueError):
+        scale = 1.0
+    try:
+        x_offset = float(x_offset)
+    except (TypeError, ValueError):
+        x_offset = 0.0
+    try:
+        y_offset = float(y_offset)
+    except (TypeError, ValueError):
+        y_offset = 0.0
 
     if "," in signature_base64_str:
         signature_base64_str = signature_base64_str.split(",", 1)[1]
@@ -1760,21 +1789,41 @@ def _stamp_signature_to_pdf(input_pdf_path, output_pdf_path, signature_base64_st
     if num_pages == 0:
         raise ValueError("Cannot sign an empty PDF")
 
-    # If Party B is signing, the last page is the Audit page, so stamp the second-to-last page.
-    last_page_idx = num_pages - 2 if is_party_b else num_pages - 1
+    # The signatures are always stamped on the last page of the content PDF.
+    last_page_idx = num_pages - 1
     last_page = reader.pages[last_page_idx]
     page_width = float(last_page.mediabox.width)
     page_height = float(last_page.mediabox.height)
 
-    sig_w = 120
-    sig_h = 45
+    # Dynamic search for "By:" text line y-coordinate
+    dynamic_y = None
+    if doc_type != "fx_ndf":
+        try:
+            y_coords = []
+            def visitor(text, cm, tm, font_dict, font_size):
+                if "By:" in text and "Digitally" not in text and tm[5] > 80.0:
+                    y_coords.append(tm[5])
+            last_page.extract_text(visitor_text=visitor)
+            if y_coords:
+                dynamic_y = min(y_coords)
+                print(f"  [INFO] Stamping: Found dynamic By: y-coordinate at {dynamic_y}")
+        except Exception as e:
+            print(f"  [WARNING] Stamping: Failed to find By: y-coordinate dynamically: {e}")
+
+    sig_w = 140 * scale
+    sig_h = 50 * scale
     if is_party_b:
         # Right side for Party B
-        sig_x = page_width - sig_w - 60
+        sig_x = 328 + x_offset
+        meta_x = page_width - 120 - 60
     else:
         # Left side for Party A
-        sig_x = 60
-    sig_y = 70
+        sig_x = 76 + x_offset
+        meta_x = 60
+    
+    # Use dynamic y-coordinate if found, otherwise fallback to 120
+    sig_y = (dynamic_y + 2 + y_offset) if dynamic_y is not None else (140 + y_offset)
+    meta_y = 35
 
     # Generate signature overlay PDF page using reportlab
     packet = io.BytesIO()
@@ -1785,24 +1834,24 @@ def _stamp_signature_to_pdf(input_pdf_path, output_pdf_path, signature_base64_st
     # Draw metadata labels
     can.setFont("Helvetica-Bold", 8)
     can.setFillColorRGB(0.1, 0.1, 0.4)
-    can.drawString(sig_x, sig_y + sig_h + 5, "Digitally Signed By:")
+    can.drawString(meta_x, meta_y + 20, "Digitally Signed By:")
 
     can.setFont("Helvetica", 8)
     can.setFillColorRGB(0.3, 0.3, 0.3)
-    can.drawString(sig_x, sig_y + sig_h - 5, user_name)
+    can.drawString(meta_x, meta_y + 10, user_name)
     ist_tz = timezone(timedelta(hours=5, minutes=30))
     now_ist = datetime.now(ist_tz)
-    can.drawString(sig_x, sig_y - 12, now_ist.strftime("%d-%b-%Y %I:%M %p IST"))
+    can.drawString(meta_x, meta_y, now_ist.strftime("%d-%b-%Y %I:%M %p IST"))
 
     if audit_metadata:
         can.setFont("Helvetica", 6.5)
         can.setFillColorRGB(0.55, 0.55, 0.55)
-        y_offset = sig_y - 20
+        y_offset = meta_y - 8
         if audit_metadata.get("email"):
-            can.drawString(sig_x, y_offset, f"Email: {audit_metadata['email']}")
+            can.drawString(meta_x, y_offset, f"Email: {audit_metadata['email']}")
             y_offset -= 8
         if audit_metadata.get("ip"):
-            can.drawString(sig_x, y_offset, f"IP: {audit_metadata['ip']}")
+            can.drawString(meta_x, y_offset, f"IP: {audit_metadata['ip']}")
             y_offset -= 8
         if audit_metadata.get("user_agent"):
             ua = audit_metadata['user_agent']
@@ -1816,7 +1865,7 @@ def _stamp_signature_to_pdf(input_pdf_path, output_pdf_path, signature_base64_st
                 simplified_ua = "Edge Browser"
             else:
                 simplified_ua = ua[:35] + "..." if len(ua) > 35 else ua
-            can.drawString(sig_x, y_offset, f"Browser: {simplified_ua}")
+            can.drawString(meta_x, y_offset, f"Browser: {simplified_ua}")
 
     can.save()
     packet.seek(0)
@@ -1845,49 +1894,75 @@ def api_sign_document(doc_id):
         if not doc:
             return jsonify({"error": "Document not found"}), 404
 
-        if doc.get("signed"):
-            return jsonify({"error": "Document is already signed"}), 400
+        if doc.get("released"):
+            return jsonify({"error": "Document is already released and cannot be signed again"}), 400
 
         body = _json_body()
         signature_data = body.get("signature_data", "")
         if not signature_data:
             return jsonify({"error": "Missing signature_data"}), 400
 
-        file_id = doc.get("pdf_file_id", "")
-        if not file_id:
-            return jsonify({"error": "No PDF stored for this document"}), 400
+        # Extract signatory inputs
+        signatory_name = body.get("signatory_name", "").strip()
+        signatory_title = body.get("signatory_title", "").strip()
+        signatory_date = body.get("signatory_date", "").strip()
 
-        body_pdf = {"pdf_file_id": file_id}
-        pdf_path, pdf_filename = _resolve_generated_pdf(body_pdf)
+        # Extract scale and offsets
+        scale = body.get("scale", 1.0)
+        x_offset = body.get("x_offset", 0.0)
+        y_offset = body.get("y_offset", 0.0)
 
-        # If not cached locally, pull from GCS first
-        if not pdf_path or not os.path.exists(pdf_path):
-            gcs_path = doc.get("gcs_object_path", "")
-            if not gcs_path:
-                return jsonify({"error": "PDF file not cached locally and no cloud backup found"}), 404
-
-            pdf_bytes = _download_from_gcs(gcs_path)
-            if not pdf_bytes:
-                return jsonify({"error": "Failed to retrieve PDF file from cloud backup"}), 404
-
-            user_id = g.current_user_id
-            if file_id and ":" in file_id:
-                job_id, filename = file_id.split(":", 1)
-                job_id = secure_filename(job_id)
-                job_dir = os.path.join(TEMP_PDF_DIR, user_id, job_id)
-                os.makedirs(job_dir, exist_ok=True)
-                pdf_path = os.path.join(job_dir, filename)
-            else:
-                job_dir = os.path.join(TEMP_PDF_DIR, user_id, "temp_downloads")
-                os.makedirs(job_dir, exist_ok=True)
-                pdf_path = os.path.join(job_dir, "document.pdf")
-
-            with open(pdf_path, "wb") as f:
-                f.write(pdf_bytes)
+        try:
+            scale = float(scale)
+        except (TypeError, ValueError):
+            scale = 1.0
+        try:
+            x_offset = float(x_offset)
+        except (TypeError, ValueError):
+            x_offset = 0.0
+        try:
+            y_offset = float(y_offset)
+        except (TypeError, ValueError):
+            y_offset = 0.0
 
         user = db.users.find_one({"_id": ObjectId(g.current_user_id)})
-        user_name = user.get("name", "Authorized Signatory") if user else "Authorized Signatory"
         user_email = user.get("email", "") if user else ""
+
+        # Determine the name/title/date to use
+        if not signatory_name:
+            signatory_name = doc.get("data", {}).get("party_a_signatory_name") or (user.get("name", "Authorized Signatory") if user else "Authorized Signatory")
+        signatory_name = signatory_name.strip()
+
+        if not signatory_date:
+            ist_tz = timezone(timedelta(hours=5, minutes=30))
+            signatory_date = datetime.now(ist_tz).strftime("%d %B %Y")
+
+        # Update trade data dictionary with signatory entries
+        trade_data = doc.get("data", {})
+        trade_data["party_a_signatory_name"] = signatory_name
+        if signatory_title:
+            trade_data["party_a_signatory_title"] = signatory_title
+        if signatory_date:
+            trade_data["party_a_signatory_date"] = signatory_date
+
+        # Recompile clean PDF with the new trade_data
+        doc_type = doc.get("doc_type", "cds")
+        generator = None
+        if doc_type == "fx_ndf": generator = _generate_fx_pdf_direct
+        elif doc_type == "cds": generator = _generate_cds_pdf_direct
+        elif doc_type == "equity_trs": generator = _generate_equity_trs_pdf_direct
+        else: generator = _generate_irs_pdf_direct
+
+        if not generator:
+            return jsonify({"error": f"{doc_type.upper()} PDF generator not available"}), 503
+
+        job_id, job_dir = _make_job_dir()
+        pdf_path = generator(trade_data, job_dir)
+        if not pdf_path or not os.path.exists(pdf_path):
+            return jsonify({"error": "Failed to compile PDF with updated signatory details"}), 500
+
+        filename = secure_filename(os.path.basename(pdf_path))
+        file_id = _file_id(job_id, filename)
 
         # Retrieve request metadata for audit trail
         ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -1901,11 +1976,23 @@ def api_sign_document(doc_id):
             "user_agent": user_agent
         }
 
+        # Stamp Party A's signature (current signature) with custom scale and offsets
         temp_signed_path = pdf_path + ".signed"
-        _stamp_signature_to_pdf(pdf_path, temp_signed_path, signature_data, user_name, audit_metadata=audit_metadata, is_party_b=False)
-
-        # Replace original cached file
+        _stamp_signature_to_pdf(pdf_path, temp_signed_path, signature_data, signatory_name, audit_metadata=audit_metadata, is_party_b=False, doc_type=doc_type, scale=scale, x_offset=x_offset, y_offset=y_offset)
         shutil.move(temp_signed_path, pdf_path)
+
+        # Stamp Party B's signature if they already countersigned (just in case)
+        party_b_sig = doc.get("party_b_signature_image")
+        if party_b_sig:
+            b_name = doc.get("client_signed_name") or "Client Counterparty"
+            party_b_metadata = doc.get("party_b_metadata")
+            b_scale = doc.get("party_b_sig_scale", 1.0)
+            b_x_offset = doc.get("party_b_sig_x_offset", 0.0)
+            b_y_offset = doc.get("party_b_sig_y_offset", 0.0)
+
+            temp_signed_path = pdf_path + ".signed_b"
+            _stamp_signature_to_pdf(pdf_path, temp_signed_path, party_b_sig, b_name, audit_metadata=party_b_metadata, is_party_b=True, doc_type=doc_type, scale=b_scale, x_offset=b_x_offset, y_offset=b_y_offset)
+            shutil.move(temp_signed_path, pdf_path)
 
         # Generate and append Audit Trail page
         ist_tz = timezone(timedelta(hours=5, minutes=30))
@@ -1916,36 +2003,43 @@ def api_sign_document(doc_id):
             "user_agent": user_agent,
             "time": now_ist
         }
-        
+
         party_b_name = doc.get("data", {}).get("party_b_name") or doc.get("data", {}).get("counterparty") or "Client Counterparty"
 
         _append_or_update_audit_trail_page(
             pdf_path,
             doc_id=str(oid),
-            doc_type=doc.get("doc_type", "generic"),
+            doc_type=doc_type,
             summary=doc.get("summary", ""),
-            party_a_name=user_name,
+            party_a_name=signatory_name,
             party_a_metadata=party_a_metadata,
             party_b_name=party_b_name,
-            party_b_metadata=None
+            party_b_metadata=doc.get("party_b_metadata")
         )
 
         # Overwrite GCS version if available
-        gcs_object_path = doc.get("gcs_object_path", "")
-        if GCS_AVAILABLE and gcs_object_path:
-            _upload_to_gcs(pdf_path, g.current_user_id, doc.get("doc_type", ""))
+        new_gcs_path = None
+        if GCS_AVAILABLE and doc.get("gcs_object_path"):
+            new_gcs_path = _upload_to_gcs(pdf_path, g.current_user_id, doc_type)
 
         # Update DB document status
         now = datetime.now(timezone.utc).isoformat()
         db.documents.update_one(
             {"_id": oid},
             {"$set": {
+                "data": trade_data,
+                "pdf_file_id": file_id,
+                "gcs_object_path": new_gcs_path if new_gcs_path else doc.get("gcs_object_path", ""),
                 "signed": True,
                 "signed_at": now,
                 "validation_status": "verified",
                 "updated_at": now,
-                "party_a_signed_name": user_name,
-                "party_a_metadata": party_a_metadata
+                "party_a_signed_name": signatory_name,
+                "party_a_metadata": party_a_metadata,
+                "party_a_signature_image": signature_data,
+                "party_a_sig_scale": scale,
+                "party_a_sig_x_offset": x_offset,
+                "party_a_sig_y_offset": y_offset
             }}
         )
 
@@ -2038,11 +2132,62 @@ def _send_pdf(pdf_path: str):
 def _generate_pdf_response(doc_type: str, generator, trade_data: dict):
     if not isinstance(trade_data, dict) or not trade_data:
         return jsonify({"error": "No JSON body provided"}), 400
+
     if generator is None:
         return jsonify({"error": f"{doc_type.upper()} PDF generator not available — module missing from deployment"}), 503
+
+    doc_id = trade_data.pop("doc_id", None)
+
     job_id, job_dir = _make_job_dir()
     pdf_path = generator(trade_data, job_dir)
+    
     if pdf_path and os.path.exists(pdf_path):
+        # Auto-restamp signatures if document was already signed
+        if doc_id:
+            try:
+                db = get_db()
+                oid = ObjectId(doc_id)
+                # Look in documents (finalized) first, then drafts
+                doc = db.documents.find_one({"_id": oid}) or db.drafts.find_one({"_id": oid})
+                if doc:
+                    # 1. Re-stamp Party A's signature if saved
+                    party_a_sig = doc.get("party_a_signature_image")
+                    if party_a_sig:
+                        user_name = doc.get("party_a_signed_name") or "Authorized Signatory"
+                        party_a_metadata = doc.get("party_a_metadata")
+                        temp_signed_path = pdf_path + ".signed_a"
+                        _stamp_signature_to_pdf(pdf_path, temp_signed_path, party_a_sig, user_name, audit_metadata=party_a_metadata, is_party_b=False)
+                        shutil.move(temp_signed_path, pdf_path)
+                    
+                    # 2. Re-stamp Party B's signature if saved
+                    party_b_sig = doc.get("party_b_signature_image")
+                    if party_b_sig:
+                        signer_name = doc.get("client_signed_name") or "Authorized Representative"
+                        party_b_metadata = doc.get("party_b_metadata")
+                        temp_signed_path = pdf_path + ".signed_b"
+                        _stamp_signature_to_pdf(pdf_path, temp_signed_path, party_b_sig, signer_name, audit_metadata=party_b_metadata, is_party_b=True)
+                        shutil.move(temp_signed_path, pdf_path)
+
+                    # 3. If signed (by either Party A or Party B) or released, generate/update the Audit Trail page
+                    if doc.get("signed") or doc.get("client_signed") or doc.get("released"):
+                        party_a_name = doc.get("party_a_signed_name") or "Initiator"
+                        party_a_metadata = doc.get("party_a_metadata")
+                        party_b_name = doc.get("client_signed_name") or doc.get("data", {}).get("party_b_name") or doc.get("data", {}).get("counterparty") or "Client Counterparty"
+                        party_b_metadata = doc.get("party_b_metadata")
+                        _append_or_update_audit_trail_page(
+                            pdf_path,
+                            doc_id=str(doc["_id"]),
+                            doc_type=doc.get("doc_type", "generic"),
+                            summary=doc.get("summary", ""),
+                            party_a_name=party_a_name,
+                            party_a_metadata=party_a_metadata,
+                            party_b_name=party_b_name,
+                            party_b_metadata=party_b_metadata
+                        )
+            except Exception as e:
+                print(f"  [ERROR] Auto-restamping failed for doc {doc_id}: {e}")
+                traceback.print_exc()
+
         filename = secure_filename(os.path.basename(pdf_path))
         try:
             get_db().pdf_jobs.insert_one({
@@ -2661,6 +2806,26 @@ def api_client_sign_document():
         token = body.get("token", "").strip()
         signature_data = body.get("signature_data", "")
         signer_name = body.get("signer_name", "").strip()
+        signer_title = body.get("signer_title", "").strip()
+        signer_date = body.get("signer_date", "").strip()
+
+        # Extract scale and offsets
+        scale = body.get("scale", 1.0)
+        x_offset = body.get("x_offset", 0.0)
+        y_offset = body.get("y_offset", 0.0)
+
+        try:
+            scale = float(scale)
+        except (TypeError, ValueError):
+            scale = 1.0
+        try:
+            x_offset = float(x_offset)
+        except (TypeError, ValueError):
+            x_offset = 0.0
+        try:
+            y_offset = float(y_offset)
+        except (TypeError, ValueError):
+            y_offset = 0.0
 
         if not token or not signature_data or not signer_name:
             return jsonify({"error": "Missing token, signature_data, or signer_name"}), 400
@@ -2672,28 +2837,6 @@ def api_client_sign_document():
 
         if doc.get("client_signed"):
             return jsonify({"error": "Document has already been countersigned"}), 400
-
-        # Resolve PDF
-        file_id = doc.get("pdf_file_id", "")
-        user_id = str(doc["user_id"])
-        resolved_path, resolved_name = _resolve_generated_pdf({"pdf_file_id": file_id}, user_id=user_id)
-        pdf_path = resolved_path
-
-        # Pull from GCS if needed
-        if not pdf_path or not os.path.exists(pdf_path):
-            gcs_path = doc.get("gcs_object_path", "")
-            if gcs_path:
-                pdf_bytes = _download_from_gcs(gcs_path)
-                if pdf_bytes:
-                    job_id = file_id.split(":", 1)[0] if ":" in file_id else "downloads"
-                    job_dir = os.path.join(TEMP_PDF_DIR, user_id, job_id)
-                    os.makedirs(job_dir, exist_ok=True)
-                    pdf_path = os.path.join(job_dir, resolved_name or "document.pdf")
-                    with open(pdf_path, "wb") as f:
-                        f.write(pdf_bytes)
-
-        if not pdf_path or not os.path.exists(pdf_path):
-            return jsonify({"error": "Signed PDF file not found"}), 404
 
         # Retrieve request metadata
         ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -2710,30 +2853,91 @@ def api_client_sign_document():
             "time": now_ist
         }
 
-        # Stamp signature on the right side for Party B
-        # NOTE: Audit trail page is NOT appended here — it will be generated
-        # only when the initiator verifies and releases the document.
-        temp_signed_path = pdf_path + ".signed"
-        _stamp_signature_to_pdf(pdf_path, temp_signed_path, signature_data, signer_name, audit_metadata=party_b_metadata, is_party_b=True)
+        # Update trade data dictionary with client signatory entries
+        trade_data = doc.get("data", {})
+        trade_data["party_b_signatory_name"] = signer_name
+        if signer_title:
+            trade_data["party_b_signatory_title"] = signer_title
+        if signer_date:
+            trade_data["party_b_signatory_date"] = signer_date
+
+        # Recompile clean PDF with the new trade_data
+        doc_type = doc.get("doc_type", "cds")
+        generator = None
+        if doc_type == "fx_ndf": generator = _generate_fx_pdf_direct
+        elif doc_type == "cds": generator = _generate_cds_pdf_direct
+        elif doc_type == "equity_trs": generator = _generate_equity_trs_pdf_direct
+        else: generator = _generate_irs_pdf_direct
+
+        if not generator:
+            return jsonify({"error": f"{doc_type.upper()} PDF generator not available"}), 503
+
+        job_id, job_dir = _make_job_dir()
+        pdf_path = generator(trade_data, job_dir)
+        if not pdf_path or not os.path.exists(pdf_path):
+            return jsonify({"error": "Failed to compile PDF with updated signatory details"}), 500
+
+        filename = secure_filename(os.path.basename(pdf_path))
+        file_id = _file_id(job_id, filename)
+
+        # Stamp Party A's signature if they signed it
+        party_a_sig = doc.get("party_a_signature_image")
+        if party_a_sig:
+            user_name = doc.get("party_a_signed_name") or "Authorized Signatory"
+            party_a_metadata = doc.get("party_a_metadata")
+            
+            # Retrieve stored offsets/scale for Party A
+            a_scale = doc.get("party_a_sig_scale", 1.0)
+            a_x_offset = doc.get("party_a_sig_x_offset", 0.0)
+            a_y_offset = doc.get("party_a_sig_y_offset", 0.0)
+
+            temp_signed_path = pdf_path + ".signed_a"
+            _stamp_signature_to_pdf(pdf_path, temp_signed_path, party_a_sig, user_name, audit_metadata=party_a_metadata, is_party_b=False, doc_type=doc_type, scale=a_scale, x_offset=a_x_offset, y_offset=a_y_offset)
+            shutil.move(temp_signed_path, pdf_path)
+
+        # Stamp Party B's signature (current signature) on the right side
+        temp_signed_path = pdf_path + ".signed_b"
+        _stamp_signature_to_pdf(pdf_path, temp_signed_path, signature_data, signer_name, audit_metadata=party_b_metadata, is_party_b=True, doc_type=doc_type, scale=scale, x_offset=x_offset, y_offset=y_offset)
         shutil.move(temp_signed_path, pdf_path)
 
+        # Generate and update Audit Trail page
+        party_a_name = doc.get("party_a_signed_name") or "Initiator"
+        party_a_metadata = doc.get("party_a_metadata")
+        _append_or_update_audit_trail_page(
+            pdf_path,
+            doc_id=str(doc["_id"]),
+            doc_type=doc_type,
+            summary=doc.get("summary", ""),
+            party_a_name=party_a_name,
+            party_a_metadata=party_a_metadata,
+            party_b_name=signer_name,
+            party_b_metadata=party_b_metadata
+        )
+
         # Upload signed (but pre-release) PDF to GCS
-        gcs_object_path = doc.get("gcs_object_path", "")
-        if GCS_AVAILABLE and gcs_object_path:
-            _upload_to_gcs(pdf_path, str(doc["user_id"]), doc.get("doc_type", ""))
+        new_gcs_path = None
+        if GCS_AVAILABLE and doc.get("gcs_object_path"):
+            new_gcs_path = _upload_to_gcs(pdf_path, str(doc["user_id"]), doc_type)
 
         # Update DB document status
         now = datetime.now(timezone.utc).isoformat()
         db.documents.update_one(
             {"_id": doc["_id"]},
             {"$set": {
+                "data": trade_data,
+                "pdf_file_id": file_id,
+                "gcs_object_path": new_gcs_path if new_gcs_path else doc.get("gcs_object_path", ""),
                 "client_signed": True,
                 "client_signed_at": now,
                 "client_signed_name": signer_name,
                 "party_b_metadata": party_b_metadata,
                 "released": False,
                 "validation_status": "pending_verification",
-                "updated_at": now
+                "updated_at": now,
+                "party_b_signature_image": signature_data,
+                "party_b_sig_scale": scale,
+                "party_b_sig_x_offset": x_offset,
+                "party_b_sig_y_offset": y_offset
             }}
         )
 

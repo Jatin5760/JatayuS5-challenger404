@@ -23,6 +23,20 @@
                     "placeholder": "e.g. 5493006MHB84DD0ZWV18"
                 },
                 {
+                    "key": "party_a_attn",
+                    "label": "Party A Attention",
+                    "type": "text",
+                    "required": false,
+                    "placeholder": "e.g. Derivatives Documentation"
+                },
+                {
+                    "key": "party_a_address",
+                    "label": "Party A Address",
+                    "type": "text",
+                    "required": false,
+                    "placeholder": "e.g. 133 Fleet Street, London EC4A 2BB"
+                },
+                {
                     "key": "party_b_name",
                     "label": "Party B Name (Protection Seller)",
                     "type": "text",
@@ -35,6 +49,20 @@
                     "type": "text",
                     "required": false,
                     "placeholder": "e.g. 5493001X4U6H6Q98U222"
+                },
+                {
+                    "key": "party_b_attn",
+                    "label": "Party B Attention",
+                    "type": "text",
+                    "required": false,
+                    "placeholder": "e.g. Attn: Derivatives Documentation"
+                },
+                {
+                    "key": "party_b_address",
+                    "label": "Party B Address",
+                    "type": "text",
+                    "required": false,
+                    "placeholder": "e.g. 383 Madison Avenue, New York, NY 10017"
                 },
                 {
                     "key": "confirmation_date",
@@ -496,6 +524,34 @@
                     "placeholder": "e.g. Attn: Derivatives Operations"
                 },
                 {
+                    "key": "party_a_signatory_by",
+                    "label": "Party A Signatory By",
+                    "type": "text",
+                    "required": false,
+                    "placeholder": "e.g. /s/ Amit Sharma"
+                },
+                {
+                    "key": "party_b_signatory_by",
+                    "label": "Party B Signatory By",
+                    "type": "text",
+                    "required": false,
+                    "placeholder": "e.g. /s/ John Doe"
+                },
+                {
+                    "key": "party_a_signatory_name",
+                    "label": "Party A Signatory Name",
+                    "type": "text",
+                    "required": false,
+                    "placeholder": "e.g. Amit Sharma"
+                },
+                {
+                    "key": "party_b_signatory_name",
+                    "label": "Party B Signatory Name",
+                    "type": "text",
+                    "required": false,
+                    "placeholder": "e.g. John Doe"
+                },
+                {
                     "key": "party_a_signatory_title",
                     "label": "Party A Signatory Title",
                     "type": "text",
@@ -508,6 +564,20 @@
                     "type": "text",
                     "required": false,
                     "placeholder": "e.g. Portfolio Manager"
+                },
+                {
+                    "key": "party_a_signatory_date",
+                    "label": "Party A Signatory Date",
+                    "type": "text",
+                    "required": false,
+                    "placeholder": "e.g. October 24, 2023"
+                },
+                {
+                    "key": "party_b_signatory_date",
+                    "label": "Party B Signatory Date",
+                    "type": "text",
+                    "required": false,
+                    "placeholder": "e.g. October 24, 2023"
                 },
                 {
                     "key": "broker_arranger_details",
