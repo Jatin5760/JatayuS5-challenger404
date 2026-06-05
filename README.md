@@ -21,14 +21,14 @@ TradeDocAI streamlines trade operations from raw email inputs to final executed 
 
 1. **Ingestion**: The user copies a raw confirmation email or text chain (e.g., from Bloomberg or Outlook) and pastes it into the UI.
 2. **AI Classification & Extraction (LangGraph)**:
-   - The [classifier_agent.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/agents/classifier_agent.py) determines the contract type (FX NDF, IRS, CDS, Equity TRS).
-   - The [extractor_agent.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/agents/extractor_agent.py) extracts structured trade data matching the specific document schema into structured JSON format.
+   - The [classifier_agent.py](./agents/classifier_agent.py) determines the contract type (FX NDF, IRS, CDS, Equity TRS).
+   - The [extractor_agent.py](./agents/extractor_agent.py) extracts structured trade data matching the specific document schema into structured JSON format.
 3. **Interactive Review & Copilot Assistance**:
    - The UI populates a multi-step form wizard with the extracted JSON.
-   - A **Form-Aware Assistant** ([assistant_agent.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/agents/assistant_agent.py)) chat panel is available to explain specific fields, recommend common options, flag invalid/nonsensical data, and highlight missing required fields.
+   - A **Form-Aware Assistant** ([assistant_agent.py](./agents/assistant_agent.py)) chat panel is available to explain specific fields, recommend common options, flag invalid/nonsensical data, and highlight missing required fields.
 4. **Compilation & Multimodal Verification**:
    - The verified JSON is compiled using a Jinja2 LaTeX engine to generate a pixel-perfect PDF.
-   - The [validator_agent.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/agents/validator_agent.py) performs a multimodal verification comparing the original email text against the compiled PDF to flag any data mismatches or discrepancies.
+   - The [validator_agent.py](./agents/validator_agent.py) performs a multimodal verification comparing the original email text against the compiled PDF to flag any data mismatches or discrepancies.
 5. **Client Signing & Dispatch**:
    - The document is shared with the client via a secure sharing link.
    - The client signs the document, triggering signature stamping via PyPDF and ReportLab, and saving it to MongoDB / GCS.
@@ -101,14 +101,14 @@ TradeDocAI implements a decoupled four-tier architecture:
 ### 1. Presentation Layer (Next.js)
 - Responsive, premium fintech design using React 19 + Next.js 16 + Tailwind CSS v4.
 - Features micro-animations powered by GSAP and Framer Motion.
-- Uses Context APIs (`DocumentContext.tsx`) for global state management and persistent localStorage support.
+- Uses dynamic page state and localStorage configuration for global state management.
 
 ### 2. Service & API Layer (Flask)
-- RESTful web server written in [server.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/server.py) handling JWT session authentication, rate limiting, and core endpoints.
+- RESTful web server written in [server.py](./server.py) handling JWT session authentication, rate limiting, and core endpoints.
 - Acts as the orchestrator for PDF compilation, file conversions, and public signing routes.
 
 ### 3. AI Orchestration Layer (LangGraph)
-- A state-based agentic graph running on LangGraph ([graph.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/agents/graph.py) & [state.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/agents/state.py)).
+- A state-based agentic graph running on LangGraph ([graph.py](./agents/graph.py) & [state.py](./agents/state.py)).
 - Integrates Google Gemini 2.5 Flash / Pro (via `google-genai`) and fallback Groq Llama models.
 - Houses dedicated agents for classification, extraction, validation, and conversational assistance.
 
@@ -128,8 +128,8 @@ flowchart TD
     classDef databases fill:#FFF1F2,stroke:#E11D48,stroke-width:2px,color:#9F1239,font-weight:bold;
 
     subgraph Frontend_Tier ["Presentation Layer (React & Next.js 16)"]
-        UI_Pages[pages: /, /dashboard, /documents, /forms, /settings]:::front
-        UI_Comp[components: Navbar, DashboardLayout, DocumentContext]:::front
+        UI_Pages[pages: /, /login, /signup, /dashboard, /public/sign]:::front
+        UI_Comp[components: DashboardSidebar, MyDocumentsUI, SettingsUI, CustomPDFViewer]:::front
     end
 
     subgraph Gateway_Tier ["API Layer (Flask Server)"]
@@ -177,30 +177,32 @@ flowchart TD
 
 ## 🖥️ User Interface & Navigation
 
-The Next.js UI is organized into structured views designed for high-efficiency trade management:
+The Next.js UI is organized into structured views and dynamic dashboard panels designed for high-efficiency trade management:
 
-1. **Landing Page (`/`)**: A sleek introduction with interactive features, showcasing capabilities, and providing direct portals for login or demo signup.
-2. **Dashboard (`/dashboard`)**: The operational hub.
+1. **Landing Page (`/`)**: A sleek introduction with interactive features, showcasing capabilities, and providing direct portals for login, signup, or the main dashboard.
+2. **Dashboard Hub (`/dashboard?page=landing`)**: The operational hub.
    - Highlights key performance indicators: Total Contracts, Pending Signatures, Processing, and Storage utilized.
    - Embeds an upload/paste modal to kick off new extractions.
    - Lists recent drafts and active workflows.
-3. **Documents Registry (`/documents`)**:
+3. **Documents Registry (`/dashboard?page=my-documents`)**:
    - Comprehensive table grid supporting full-text search, trade-type sorting, status filters, and pagination.
    - Allows users to delete, copy sharing links, or jump back into drafts.
-4. **Interactive Document Viewer (`/documents/[id]`)**:
+4. **Interactive Document Viewer (`/dashboard?page=pdf`)**:
    - **Preview Tab**: Real-time PDF preview pane.
    - **Extracted Data Tab**: An interactive form showcasing values extracted by the AI, complete with color-coded confidence indicators and discrepancy warnings.
    - **Export Tab**: Supports downloading the validated contract as a PDF or converting it instantly to a MS Word (`.docx`) file.
-5. **Form Wizard (`/forms`)**:
+5. **Form Wizard (`/dashboard?page=form`)**:
    - A step-by-step assistant for manual creation.
    - **Step 1 (Select Schema)**: Choose templates (FX NDF, IRS, CDS, Equity TRS).
    - **Step 2 (Fill Fields)**: Dynamic forms powered by JSON schemas.
    - **Step 3 (Review)**: Final audit before generation.
    - **Step 4 (Success)**: Finalized document confirmation.
-6. **Settings Page (`/settings`)**:
+6. **Settings Panel (`/dashboard?page=settings`)**:
    - User profile configuration and credentials.
    - Toggle switches for active notification channels and API integration keys (GCP, Groq, Adobe).
    - Storage utilization metrics.
+7. **Public Signing Portal (`/public/sign?token=<token>`)**:
+   - Secure external interface where clients review documents, adjust visual signature parameters, and execute signing agreements.
 
 ---
 
@@ -208,18 +210,18 @@ The Next.js UI is organized into structured views designed for high-efficiency t
 
 | Category | Technology | Description |
 | :--- | :--- | :--- |
-| **Frontend Core** | Next.js 16 (App Router), React 19, TypeScript | Robust framework for server-rendered UI components. See [ui-app/package.json](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/ui-app/package.json). |
+| **Frontend Core** | Next.js 16 (App Router), React 19, TypeScript | Robust framework for server-rendered UI components. See [ui-app/package.json](./ui-app/package.json). |
 | **Frontend Styling**| Tailwind CSS v4, Vanilla CSS variables | Curated dark-themed palette, fluid responsive grids. |
 | **UI Motion** | GSAP, Framer Motion, Cobe | Smooth animations and micro-interactions with dynamic 3D globe. |
-| **Backend Core** | Flask, Flask-CORS, Flask-Limiter | Python web server orchestrating file operations and database links. See [server.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/server.py). |
-| **Agent Pipeline** | LangGraph, LangChain | State-based graph runner managing agent coordination and fallbacks. See [graph.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/agents/graph.py). |
+| **Backend Core** | Flask, Flask-CORS, Flask-Limiter | Python web server orchestrating file operations and database links. See [server.py](./server.py). |
+| **Agent Pipeline** | LangGraph, LangChain | State-based graph runner managing agent coordination and fallbacks. See [graph.py](./agents/graph.py). |
 | **AI Foundations** | Google Gemini 2.5 (Flash/Pro), Groq | Multi-modal validation, structured JSON data extraction, and copilot. |
 | **Document Compile** | Jinja2 Templates, TinyTeX (pdflatex) | Generates high-fidelity LaTeX compiles for clean financial templates. |
 | **PDF Stamping** | PyPDF, ReportLab | Programmatically stamps digital signatures and metadata on PDFs. |
 | **File Conversion** | Adobe PDF Services SDK | Enterprise API converts compiled PDFs directly into editable Word docs. |
 | **Database** | MongoDB (PyMongo) | Stores trade records, validation logs, users, and audit steps. |
 | **Object Storage** | Google Cloud Storage (GCS) | Cloud object store saving and issuing signed URLs for PDF documents. |
-| **Infrastructure** | Docker, Docker-Compose | Containerized environment bundling Web server, TeX dependencies, and DB. See [Dockerfile](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/Dockerfile) and [docker-compose.yml](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/docker-compose.yml). |
+| **Infrastructure** | Docker, Docker-Compose | Containerized environment bundling Web server, TeX dependencies, and DB. See [Dockerfile](./Dockerfile) and [docker-compose.yml](./docker-compose.yml). |
 
 ---
 
@@ -235,8 +237,8 @@ The quickest and most consistent way to deploy TradeDocAI is using Docker.
 
 1. **Clone the Repository & Set Environment Variables**:
    ```bash
-   git clone https://github.com/sanjay-r123/TradeDocAI.git
-   cd TradeDocAI
+   git clone https://github.com/Jatin5760/JatayuS5-challenger404.git
+   cd JatayuS5-challenger404
    cp .env.example .env
    ```
    *Edit the `.env` file to replace placeholder values with your credentials (specifically `GEMINI_API_KEY`, `AUTH_SECRET`, etc.).*
@@ -247,7 +249,7 @@ The quickest and most consistent way to deploy TradeDocAI is using Docker.
    ```
    This command starts:
    - **MongoDB** container running on port `27017` with persistent volumes.
-   - **TradeDocAI App** container running on port `5055` (built via [Dockerfile](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/Dockerfile), which installs Python 3.11, Next.js statically exported files, and TinyTeX).
+   - **TradeDocAI App** container running on port `5055` (built via [Dockerfile](./Dockerfile), which installs Python 3.11, Next.js statically exported files, and TinyTeX).
 
 3. **Verify Health**:
    The app container contains a built-in health check polling `/health/live`. Verify with:
@@ -269,9 +271,11 @@ If you prefer to run the application locally without Docker containers, follow t
 1. Ensure **Python 3.9+** is installed.
 2. Install LaTeX command line compiler. On Windows, install **MiKTeX** (ensure "Install missing packages on-the-fly" is set to "Yes"). On macOS/Linux, install **MacTeX** or **TeX Live**.
 3. Locate the `pdflatex` executable on your system (e.g., run `where pdflatex` on Windows or `which pdflatex` on unix) and update the `PDFLATEX` variable path in the generator scripts:
-   - [generate_fx_ndf.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/templates/FX_Trade_Confirmation/generate_fx_ndf.py)
-   - [generate_irs.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/templates/IRS_Confirmation/generate_irs.py)
-4. Create and activate a python virtual environment, and install dependencies listed in [requirements.txt](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/requirements.txt):
+   - [generate_fx_ndf.py](./templates/FX_Trade_Confirmation/generate_fx_ndf.py)
+   - [generate_irs.py](./templates/IRS_Confirmation/generate_irs.py)
+   - [generate_cds.py](./templates/CDS_Confirmation/generate_cds.py)
+   - [generate_equity_trs.py](./templates/Equity_TRS/generate_equity_trs.py)
+4. Create and activate a python virtual environment, and install dependencies listed in [requirements.txt](./requirements.txt):
    ```bash
    python -m venv venv
    # On Windows:
@@ -300,18 +304,18 @@ If you prefer to run the application locally without Docker containers, follow t
    ```bash
    python server.py
    ```
-   The API will run on `http://localhost:5000` (which is targetable by the Next.js local server).
+   The API will run on `http://localhost:5055` (which is targetable by the Next.js local server).
 
 ---
 
 ## 📂 Codebase Reference
 To explore or modify the system, here are the entry files for each subsystem:
-- **Backend Entry Server**: [server.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/server.py)
-- **Agent Orchestrator Graph**: [agents/graph.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/agents/graph.py)
-- **Agent Global State**: [agents/state.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/agents/state.py)
-- **Email Classifier**: [agents/classifier_agent.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/agents/classifier_agent.py)
-- **Structured LLM Extractor**: [agents/extractor_agent.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/agents/extractor_agent.py)
-- **Multimodal Validator**: [agents/validator_agent.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/agents/validator_agent.py)
-- **Form Copilot**: [agents/assistant_agent.py](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/agents/assistant_agent.py)
-- **Frontend Entry page**: [ui-app/app/page.tsx](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/ui-app/app/page.tsx)
-- **Docker Blueprint**: [Dockerfile](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/Dockerfile) / [docker-compose.yml](file:///c:/Users/mesou/Desktop/Trade_new/TradeDocAI/docker-compose.yml)
+- **Backend Entry Server**: [server.py](./server.py)
+- **Agent Orchestrator Graph**: [agents/graph.py](./agents/graph.py)
+- **Agent Global State**: [agents/state.py](./agents/state.py)
+- **Email Classifier**: [agents/classifier_agent.py](./agents/classifier_agent.py)
+- **Structured LLM Extractor**: [agents/extractor_agent.py](./agents/extractor_agent.py)
+- **Multimodal Validator**: [agents/validator_agent.py](./agents/validator_agent.py)
+- **Form Copilot**: [agents/assistant_agent.py](./agents/assistant_agent.py)
+- **Frontend Entry page**: [ui-app/app/page.tsx](./ui-app/app/page.tsx)
+- **Docker Blueprint**: [Dockerfile](./Dockerfile) / [docker-compose.yml](./docker-compose.yml)

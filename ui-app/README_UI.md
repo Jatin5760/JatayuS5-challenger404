@@ -30,25 +30,24 @@ ui-app/
 │   ├── layout.tsx                  # Root layout
 │   ├── globals.css                 # Global styles & design tokens
 │   ├── login/
-│   │   └── page.tsx               # Login page (demo: demo@tradedoc.ai / demo123)
+│   │   └── page.tsx                # Login page (demo: demo@tradedoc.ai / demo123)
 │   ├── signup/
-│   │   └── page.tsx               # Sign up page
+│   │   └── page.tsx                # Sign up page
 │   ├── dashboard/
-│   │   └── page.tsx               # Main dashboard
-│   ├── documents/
-│   │   ├── page.tsx               # Documents list
-│   │   └── [id]/
-│   │       └── page.tsx           # Document viewer & PDF preview
-│   ├── forms/
-│   │   └── page.tsx               # Dynamic form wizard
-│   └── settings/
-│       └── page.tsx               # Settings page
-├── components/
-│   ├── Navbar.tsx                 # Navigation component
-│   ├── DashboardLayout.tsx        # Dashboard layout wrapper
-│   └── DocumentContext.tsx        # Document state management
+│   │   ├── page.tsx                # Main dashboard page
+│   │   ├── components/             # Reusable panel components
+│   │   │   ├── DashboardSidebar.tsx # Sidebar menu component
+│   │   │   ├── MyDocumentsUI.tsx    # Documents list panel
+│   │   │   ├── SettingsUI.tsx       # Settings configuration panel
+│   │   │   ├── CustomPDFViewer.tsx  # Interactive PDF preview & signature positioning
+│   │   │   └── ...
+│   │   ├── types/                  # Dashboard types definitions
+│   │   └── utils/                  # Dashboard helper utilities
+│   └── public/
+│       └── sign/
+│           └── page.tsx            # Public client signing page
 ├── lib/
-│   └── formSchemas.ts             # Form schema definitions
+│   └── api.ts                      # Backend API calling helper
 └── public/
     └── [static assets]
 ```
@@ -148,43 +147,40 @@ Password: demo123
 
 ## Key Components
 
-### Navbar
-Navigation bar with logo, menu links, and auth buttons.
+### DashboardSidebar
+The sidebar menu providing:
+- Sidebar navigation between panels
+- User session avatar and logout action
+- Real-time pending releases counter
 
-### DashboardLayout
-Wrapper component providing:
-- Sidebar navigation
-- Top header bar
-- User menu
-- Protected route enforcement
+### CustomPDFViewer
+The main document viewing interface providing:
+- Real-time PDF previewing and scale controls
+- Visual signature coordinate offsets adjustments via range sliders
+- Dual-signature visual placement mappings
 
-### DocumentContext
-React Context for managing documents:
-- CRUD operations
-- localStorage persistence
-- Simulated processing
-
-### FormSchemas
-Pre-built form templates:
-- **FX Trade Confirmation**: Currency pairs, spot rates, settlements
-- **Bond Purchase Agreement**: Issuer, coupon rate, maturity
-- **Invoice Processing**: General invoice data extraction
+### MyDocumentsUI
+Registry table for all processed documents containing:
+- Document lists with search, pagination, status badges, and document-type filters
+- Quick actions: view, copy client signing links, and delete
 
 ## Integration with Backend
 
-The UI is designed to work with the Flask backend at `/server.py`. Key API endpoints to integrate:
+The UI communicates with the Flask backend at `http://localhost:5055`. Key API endpoints integrated:
 
 ```
-POST /api/ai/extract       # Extract data from documents
-POST /api/forms/validate   # Validate form submissions
-POST /api/pdf/generate     # Generate PDFs
-POST /api/documents/upload # Upload documents
+POST /ai/extract                 # AI data extraction from pasted raw text
+GET  /api/documents              # Fetch list of documents
+POST /api/documents              # Save new document draft
+GET  /api/documents/<doc_id>     # Fetch single document details
+PUT  /api/documents/<doc_id>     # Save form updates for a document
+DELETE /api/documents/<doc_id>  # Delete a document
+GET  /api/documents/<doc_id>/pdf # Stream generated PDF binary
+GET  /api/documents/<doc_id>/validation # Fetch multimodal AI validation report
+POST /api/documents/<doc_id>/send-to-client # Send signing link email to client
 ```
 
-Update API calls in:
-- `/components/DocumentContext.tsx` (document operations)
-- `/app/forms/page.tsx` (form submissions)
-- `/app/documents/[id]/page.tsx` (PDF generation)
+API calls are centralized and executed in `app/dashboard/page.tsx` and custom viewer / sidebar components.
 
 ## Current Limitations (Demo Mode)
 

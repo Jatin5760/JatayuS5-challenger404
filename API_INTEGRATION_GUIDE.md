@@ -5,7 +5,7 @@ This guide explains how to connect the React UI to the Flask backend server.
 ## Current Setup
 
 - **UI Server**: Next.js on localhost:3000
-- **Backend Server**: Flask on localhost:5001 (from `/server.py`)
+- **Backend Server**: Flask on localhost:5055 (from `/server.py`)
 - **Communication**: HTTP REST APIs
 
 ## Integration Points
@@ -30,7 +30,7 @@ const addDocument = async (name: string, type: string, file: File) => {
   formData.append('document_type', type);
 
   try {
-    const response = await fetch('http://localhost:5001/api/documents/upload', {
+    const response = await fetch('http://localhost:5055/api/documents/upload', {
       method: 'POST',
       body: formData,
     });
@@ -82,7 +82,7 @@ useEffect(() => {
 const fetchExtractedData = async () => {
   try {
     const response = await fetch(
-      `http://localhost:5001/api/ai/extract?document_id=${docId}`
+      `http://localhost:5055/api/ai/extract?document_id=${docId}`
     );
     const data = await response.json();
     setExtractedData({
@@ -122,7 +122,7 @@ const validateForm = async () => {
 
   try {
     const response = await fetch(
-      'http://localhost:5001/api/forms/validate',
+      'http://localhost:5055/api/forms/validate',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -171,7 +171,7 @@ const handleSubmit = () => {
 const handleSubmit = async () => {
   try {
     const response = await fetch(
-      'http://localhost:5001/api/forms/submit',
+      'http://localhost:5055/api/forms/submit',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -214,7 +214,7 @@ const handleSubmit = async () => {
 const handleExport = async (format: 'pdf' | 'docx' | 'json' | 'csv') => {
   try {
     const response = await fetch(
-      `http://localhost:5001/api/documents/${docId}/export`,
+      `http://localhost:5055/api/documents/${docId}/export`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -273,7 +273,7 @@ const handleLogin = async (e: React.FormEvent) => {
 
   try {
     const response = await fetch(
-      'http://localhost:5001/api/auth/login',
+      'http://localhost:5055/api/auth/login',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -304,13 +304,13 @@ const handleLogin = async (e: React.FormEvent) => {
 Create a `.env.local` file in the ui-app folder:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5001
+NEXT_PUBLIC_API_URL=http://localhost:5055
 NEXT_PUBLIC_APP_NAME=TradeDocAI
 ```
 
 Then use in code:
 ```typescript
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5055';
 ```
 
 ## API Request Interceptor (Optional)
@@ -328,7 +328,7 @@ export async function apiCall<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<ApiResponse<T>> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5055';
   const url = `${apiUrl}${endpoint}`;
 
   const token = localStorage.getItem('authToken');
@@ -416,7 +416,7 @@ const file = new File(['test'], 'test.pdf', { type: 'application/pdf' });
 
 ### 2. Test API Endpoint
 ```bash
-curl -X POST http://localhost:5001/api/ai/extract \
+curl -X POST http://localhost:5055/api/ai/extract \
   -H "Content-Type: application/json" \
   -d '{"document_id": "123"}'
 ```

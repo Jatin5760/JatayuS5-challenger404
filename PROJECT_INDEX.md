@@ -3,7 +3,7 @@
 ## 📦 Project Structure Overview
 
 ```
-/vercel/share/v0-project/
+/Users/jatin8817/Downloads/Latest_Virtusa_2.0/
 ├── ui-app/                          # React/Next.js UI Application
 │   ├── app/                         # Application routes and pages
 │   │   ├── page.tsx                 # Landing page (/)
@@ -14,21 +14,20 @@
 │   │   ├── signup/
 │   │   │   └── page.tsx             # Sign up page (/signup)
 │   │   ├── dashboard/
-│   │   │   └── page.tsx             # Main dashboard (/dashboard)
-│   │   ├── documents/
-│   │   │   ├── page.tsx             # Documents list (/documents)
-│   │   │   └── [id]/
-│   │   │       └── page.tsx         # Document viewer (/documents/[id])
-│   │   ├── forms/
-│   │   │   └── page.tsx             # Form wizard (/forms)
-│   │   └── settings/
-│   │       └── page.tsx             # Settings page (/settings)
-│   ├── components/                  # Reusable components
-│   │   ├── Navbar.tsx               # Navigation bar
-│   │   ├── DashboardLayout.tsx      # Dashboard wrapper layout
-│   │   └── DocumentContext.tsx      # Document state management
+│   │   │   ├── page.tsx             # Main dashboard (/dashboard)
+│   │   │   ├── components/          # Reusable dashboard panel components
+│   │   │   │   ├── DashboardSidebar.tsx # Sidebar component
+│   │   │   │   ├── MyDocumentsUI.tsx    # Registry panel component
+│   │   │   │   ├── SettingsUI.tsx       # Settings panel component
+│   │   │   │   ├── CustomPDFViewer.tsx  # Document PDF previewer component
+│   │   │   │   └── ...
+│   │   │   ├── types/               # Dashboard types definitions
+│   │   │   └── utils/               # Dashboard local helpers
+│   │   ├── public/
+│   │   │   └── sign/
+│   │   │       └── page.tsx         # Public signing portal page (/public/sign)
 │   ├── lib/                         # Utilities and constants
-│   │   └── formSchemas.ts           # Form schema definitions
+│   │   └── api.ts                   # API calling helpers
 │   ├── public/                      # Static assets
 │   ├── package.json                 # Dependencies
 │   ├── tsconfig.json                # TypeScript config
@@ -79,24 +78,26 @@
 
 ### UI Pages & Components
 
-| File | Route | Purpose |
+| File | Route / Query | Purpose |
 |------|-------|---------|
 | `app/page.tsx` | `/` | Landing page with hero, features, CTA |
-| `app/login/page.tsx` | `/login` | Demo authentication (demo@tradedoc.ai) |
-| `app/signup/page.tsx` | `/signup` | Sign up form |
-| `app/dashboard/page.tsx` | `/dashboard` | Main dashboard with documents |
-| `app/documents/page.tsx` | `/documents` | Full documents list with search |
-| `app/documents/[id]/page.tsx` | `/documents/:id` | Document viewer & extraction |
-| `app/forms/page.tsx` | `/forms` | 4-step form wizard |
-| `app/settings/page.tsx` | `/settings` | User settings |
+| `app/login/page.tsx` | `/login` | Authentication page |
+| `app/signup/page.tsx` | `/signup` | Sign up page |
+| `app/dashboard/page.tsx` | `/dashboard?page=landing` | Main dashboard panel |
+| `app/dashboard/page.tsx` | `/dashboard?page=my-documents` | Full documents list registry with search |
+| `app/dashboard/page.tsx` | `/dashboard?page=pdf` | Document viewer & PDF preview panel |
+| `app/dashboard/page.tsx` | `/dashboard?page=form` | 4-step interactive form wizard panel |
+| `app/dashboard/page.tsx` | `/dashboard?page=settings` | User settings panel |
+| `app/public/sign/page.tsx` | `/public/sign` | Secure customer signing portal |
 
-### Reusable Components
+### Reusable Panel Components (under `app/dashboard/components/`)
 
 | File | Purpose |
 |------|---------|
-| `components/Navbar.tsx` | Top navigation bar |
-| `components/DashboardLayout.tsx` | Dashboard sidebar + layout |
-| `components/DocumentContext.tsx` | Document state management |
+| `DashboardSidebar.tsx` | Sidebar menu navigation |
+| `MyDocumentsUI.tsx` | Grid and table list of documents |
+| `SettingsUI.tsx` | Configuration options |
+| `CustomPDFViewer.tsx` | Visual signature placement and PDF preview |
 
 ### Configuration & Utilities
 
@@ -328,21 +329,19 @@ See `API_INTEGRATION_GUIDE.md` for detailed implementation.
 
 ```
 RootLayout
-├── Navbar (public pages)
-└── DashboardLayout (protected pages)
-    ├── Sidebar
-    ├── Header
-    ├── Main Content
-    │   ├── DocumentProvider
-    │   └── Page Component
-    └── User Menu
+├── page.tsx (Landing Page)
+├── login/page.tsx (Login Page)
+├── signup/page.tsx (Signup Page)
+├── public/sign/page.tsx (Public Client Signing Page)
+└── dashboard/page.tsx (Dashboard Hub)
+    ├── DashboardSidebar
+    └── Panel Views (MyDocumentsUI, AIExtractPanel, WorkflowBuilderPanel, SettingsUI, CustomPDFViewer)
 
-Context Providers
-├── DocumentContext
-│   ├── documents state
-│   ├── CRUD methods
-│   └── localStorage sync
-└── (Ready for: AuthContext, ThemeContext)
+State Management
+├── local React states in DashboardPage
+│   ├── documents state (recentDocs, setRecentDocs)
+│   ├── CRUD / workflow handlers (onSave, onDelete, onUpdate)
+│   └── localStorage sync & URL query synchronization
 ```
 
 ## 🔄 Data Flow
