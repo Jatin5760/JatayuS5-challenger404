@@ -188,10 +188,14 @@ def compile_to_pdf(tex_content: str, trade_data: dict, output_dir: str = None) -
     out_dir = output_dir or OUTPUT_DIR
     os.makedirs(out_dir, exist_ok=True)
 
+    def clean_filename(s):
+        s = s.replace("\\", "")
+        return "".join(c for c in s if c.isalnum() or c in (" ", "_", "-")).replace(" ", "_")
+
     # Create output filename from trade details
-    ref_ccy = trade_data.get("reference_currency", "CCY")
-    stl_ccy = trade_data.get("settlement_currency", "USD")
-    date = trade_data.get("trade_date", "").replace(" ", "_")
+    ref_ccy = clean_filename(trade_data.get("reference_currency", "CCY"))
+    stl_ccy = clean_filename(trade_data.get("settlement_currency", "USD"))
+    date = clean_filename(trade_data.get("trade_date", ""))
     output_name = f"FX_NDF_{ref_ccy}_{stl_ccy}_{date}"
 
     tex_path = os.path.join(out_dir, f"{output_name}.tex")
@@ -232,7 +236,7 @@ def compile_to_pdf(tex_content: str, trade_data: dict, output_dir: str = None) -
 # ─────────────────────────────────────────────
 # PUBLIC API — called by server.py
 # ─────────────────────────────────────────────
-def generate_pdf(trade_data: dict, output_dir: str = None) -> str:
+def generate_pdf(trade_data: dict, output_dir: str | None = None) -> str | None:
     """
     End-to-end: fill template + compile to PDF.
     Returns the absolute path to the generated PDF, or None on failure.

@@ -81,10 +81,14 @@ def compile_to_pdf(tex_content, trade_data, output_dir=None):
     out_dir = output_dir or OUTPUT_DIR
     os.makedirs(out_dir, exist_ok=True)
 
+    def clean_filename(s):
+        s = s.replace("\\", "")
+        return "".join(c for c in s if c.isalnum() or c in (" ", "_", "-")).replace(" ", "_")
+
     # Naming convention: Confirmation_TRS_[Model]_[PartyA]_[Date]
     model    = trade_data.get("model_type", "I")
-    party_a  = trade_data.get("party_a_name", "PartyA").replace(" ", "_")
-    date     = trade_data.get("trade_date", "Date").replace(" ", "_").replace("/", "-")
+    party_a  = clean_filename(trade_data.get("party_a_name", "PartyA"))
+    date     = clean_filename(trade_data.get("trade_date", "Date").replace("/", "-"))
     name     = f"Confirmation_EquityTRS_Model{model}_{party_a}_{date}"
 
     tex_path = os.path.join(out_dir, f"{name}.tex")
@@ -169,7 +173,7 @@ def _escape_latex(data):
         return data
 
 
-def generate_pdf(trade_data: dict, output_dir: str = None) -> str:
+def generate_pdf(trade_data: dict, output_dir: str | None = None) -> str | None:
     """Public API for generating the Equity TRS PDF."""
     trade_data = _escape_latex(trade_data)
     filled_tex = fill_template(trade_data)

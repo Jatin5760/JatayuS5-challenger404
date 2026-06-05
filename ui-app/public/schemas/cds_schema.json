@@ -321,6 +321,106 @@
                 }
             ]
         },
+        "credit_events": {
+            "title": "Credit Events",
+            "always_show": true,
+            "fields": [
+                {
+                    "key": "bankruptcy",
+                    "label": "Bankruptcy",
+                    "type": "select",
+                    "required": false,
+                    "options": [
+                        "Applicable",
+                        "Not Applicable"
+                    ]
+                },
+                {
+                    "key": "failure_to_pay",
+                    "label": "Failure to Pay",
+                    "type": "select",
+                    "required": false,
+                    "options": [
+                        "Applicable",
+                        "Not Applicable"
+                    ]
+                },
+                {
+                    "key": "grace_period_extension",
+                    "label": "Grace Period Extension",
+                    "type": "select",
+                    "required": false,
+                    "options": [
+                        "Applicable",
+                        "Not Applicable"
+                    ]
+                },
+                {
+                    "key": "payment_requirement",
+                    "label": "Payment Requirement",
+                    "type": "text",
+                    "required": false,
+                    "placeholder": "e.g. USD 1,000,000"
+                },
+                {
+                    "key": "obligation_acceleration",
+                    "label": "Obligation Acceleration",
+                    "type": "select",
+                    "required": false,
+                    "options": [
+                        "Applicable",
+                        "Not Applicable"
+                    ]
+                },
+                {
+                    "key": "obligation_default",
+                    "label": "Obligation Default",
+                    "type": "select",
+                    "required": false,
+                    "options": [
+                        "Applicable",
+                        "Not Applicable"
+                    ]
+                },
+                {
+                    "key": "repudiation_moratorium",
+                    "label": "Repudiation/Moratorium",
+                    "type": "select",
+                    "required": false,
+                    "options": [
+                        "Applicable",
+                        "Not Applicable"
+                    ]
+                },
+                {
+                    "key": "restructuring",
+                    "label": "Restructuring",
+                    "type": "text",
+                    "required": false,
+                    "placeholder": "e.g. Applicable — Mod Restructuring (MR)"
+                },
+                {
+                    "key": "restructuring_maturity_limitation",
+                    "label": "Restructuring Maturity Limitation",
+                    "type": "select",
+                    "required": false,
+                    "options": [
+                        "Applicable",
+                        "Not Applicable"
+                    ]
+                },
+                {
+                    "key": "governmental_intervention",
+                    "label": "Governmental Intervention",
+                    "type": "select",
+                    "required": false,
+                    "options": [
+                        "Applicable",
+                        "Not Applicable"
+                    ]
+                }
+            ]
+        },
         "specific_additional_provisions": {
             "title": "Specific Additional Provisions",
             "always_show": true,

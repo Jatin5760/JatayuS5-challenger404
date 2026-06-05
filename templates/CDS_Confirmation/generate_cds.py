@@ -66,8 +66,12 @@ def compile_to_pdf(tex_content, trade_data, output_dir=None):
     out_dir = output_dir or OUTPUT_DIR
     os.makedirs(out_dir, exist_ok=True)
 
-    party_a  = trade_data.get("party_a_name", "PartyA").replace(" ", "_")
-    date     = trade_data.get("trade_date", "UnknownDate").replace(" ", "_")
+    def clean_filename(s):
+        s = s.replace("\\", "")
+        return "".join(c for c in s if c.isalnum() or c in (" ", "_", "-")).replace(" ", "_")
+
+    party_a  = clean_filename(trade_data.get("party_a_name", "PartyA"))
+    date     = clean_filename(trade_data.get("trade_date", "UnknownDate"))
     
     # Clean naming convention specific to CDS
     name     = f"CDS_Confirmation_{party_a}_{date}"
@@ -105,7 +109,7 @@ def compile_to_pdf(tex_content, trade_data, output_dir=None):
 # ─────────────────────────────────────────────
 # PUBLIC API — called by server.py
 # ─────────────────────────────────────────────
-def generate_pdf(trade_data: dict, output_dir: str = None) -> str:
+def generate_pdf(trade_data: dict, output_dir: str | None = None) -> str | None:
     """
     End-to-end: fill template + compile to PDF.
     Returns the absolute path to the generated PDF, or None on failure.
